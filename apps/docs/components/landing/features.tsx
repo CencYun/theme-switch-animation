@@ -4,6 +4,7 @@ import { Layers, Link2, PlugZap, ShieldCheck, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { AnimatedBadge } from '@/components/motion/animated-badge'
+import { TiltCard } from '@/components/motion/tilt-card'
 
 const FEATURES = [
   {
@@ -12,7 +13,6 @@ const FEATURES = [
     description:
       '一套核心，四种用法：React / Vue composable、Next.js 受控示例、Nuxt 模块自动导入。',
     tags: ['React 18+', 'Vue 3+', 'Next.js', 'Nuxt 3+'],
-    tile: 'from-sky-500 to-indigo-500',
   },
   {
     icon: Sparkles,
@@ -20,7 +20,6 @@ const FEATURES = [
     description:
       '圆形 / 形状 / 百叶窗 / 扫描 / 格子 / 涟漪 / 扇形 / 双开门，方向与参数可调；9 个类型支持 reverse 反向揭开。',
     tags: ['CIRCLE', 'RIPPLE', 'CLOCK_SWEEP', 'BLINDS', '…'],
-    tile: 'from-fuchsia-500 to-rose-500',
   },
   {
     icon: PlugZap,
@@ -28,7 +27,6 @@ const FEATURES = [
     description:
       '不独占主题状态：next-themes 与 @nuxtjs/color-mode 用户直接接入，300ms 未同步自动直切。',
     tags: ['next-themes', '@nuxtjs/color-mode'],
-    tile: 'from-emerald-500 to-teal-500',
   },
   {
     icon: Link2,
@@ -36,7 +34,6 @@ const FEATURES = [
     description:
       '同页多个实例的 isDark 以 html class 为事实源镜像，其它标签页经 storage 事件同步。',
     tags: ['observeThemeClass', 'finished'],
-    tile: 'from-violet-500 to-purple-500',
   },
   {
     icon: ShieldCheck,
@@ -44,7 +41,6 @@ const FEATURES = [
     description:
       '不支持 View Transitions、SSR、prefers-reduced-motion：跳过动画，状态永远正确。',
     tags: ['SSR 安全', 'reduced-motion'],
-    tile: 'from-amber-500 to-orange-500',
   },
 ] as const
 
@@ -74,26 +70,26 @@ export function FeaturesSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
               transition={{ duration: 0.45, delay: index * 0.08 }}
-              className="glass-card group relative flex flex-col overflow-hidden rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
             >
-              {/* 顶部流光：悬浮时显现 */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-              <div
-                className={`mb-5 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg transition-transform duration-300 group-hover:scale-110 ${feature.tile}`}
-              >
-                <feature.icon size={22} />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-              <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-                {feature.description}
-              </p>
-              <div className="mt-auto flex flex-wrap gap-1.5">
-                {feature.tags.map((tag) => (
-                  <AnimatedBadge key={tag} size="sm" showIcon={false}>
-                    {tag}
-                  </AnimatedBadge>
-                ))}
-              </div>
+              {/* TiltCard 做外层倾斜 wrapper：glare 光斑的圆角裁剪与卡片圆角对齐都在这层 */}
+              <TiltCard max={6} className="h-full rounded-[1.5rem]">
+                <div className="card-premium flex h-full flex-col p-6">
+                  <span className="icon-tile">
+                    <feature.icon size={20} className="text-foreground" strokeWidth={1.75} />
+                  </span>
+                  <h3 className="mt-5 text-lg font-semibold">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {feature.description}
+                  </p>
+                  <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
+                    {feature.tags.map((tag) => (
+                      <AnimatedBadge key={tag} size="sm" showIcon={false}>
+                        {tag}
+                      </AnimatedBadge>
+                    ))}
+                  </div>
+                </div>
+              </TiltCard>
             </motion.div>
           ))}
         </div>
