@@ -39,6 +39,11 @@ const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const PW_DIR = process.env.PW_DIR ?? join(tmpdir(), 'pw-webkit')
 const PORT = 3212
 const ALL_TYPES = process.argv.includes('--all-types')
+/** `--reverse-types=square,rectangle,circle-blur`：对指定类型追加 reverse 反向形态的 D 阶段取证 */
+const REVERSE_TYPES = (() => {
+  const raw = process.argv.find((a) => a.startsWith('--reverse-types='))
+  return raw ? raw.split('=')[1].split(',').map((s) => s.trim()).filter(Boolean) : []
+})()
 const MIME = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' }
 // 时间表按 ease-in-out 曲线加密动作区间（收起的可见变化集中在后半段、扩散在前半段），
 // 保证两个方向都能取到 ≥6 个互异亮度
@@ -171,7 +176,11 @@ function judgeStepped(name, rows, dir, { skipFit = false, noiseLen = 0, minDisti
   if (noiseLen > 0) {
     const lens = segs.map((s) => s.len).sort((a, b) => a - b)
     const median = lens[Math.floor(lens.length / 2)] ?? 0
-    if (median >= 5) major = segs.filter((s) => s.len > noiseLen)
+    // 每档 450ms dwell 在 ~25fps 下 ≈11 帧/档，最长档 ≥8 即帧率正常——len ≤ noiseLen 的
+    // 短段必是 webm 乱序/丢帧假档。此前只看中位段长，过渡帧一多就把中位压到 5 以下、
+    // 假档漏进 seq（复跑时 CIRCLE 正向 36×2、RECTANGLE reverse 251×2 各吃到一次非单调 1）
+    const maxLen = lens[lens.length - 1] ?? 0
+    if (median >= 5 || maxLen >= 8) major = segs.filter((s) => s.len > noiseLen)
   }
   // 起点 = 最后一个「起始平台」主段（收起：暗；扩散：亮）之后 —— 平台吸收页面加载与起始静止帧
   const isPlatform = dir === 'up' ? (s) => s.lum < 45 : (s) => s.lum > 235
@@ -254,6 +263,25 @@ try {
         minDistinct: 4, // RIPPLE 类"前段就盖满"的类型稳态档位天然少（实测 5）
         minInter: 3, // 真正的判别力在这里：必须取到 ≥3 个"严格中间档"，离散翻转只有 0 个
         spanFromFull: true, // 跨度按整段录制量，不按被切割后的残段
+      })
+    }
+  }
+
+  // D（`--reverse-types=a,b,c`）：reverse 反向形态的确定性 seek（dark→light，洞式收起）。
+  // 多层 add 补集串与宽羽化径向洞在各引擎合成器下的推进证据（P3-7 待验点）走这段。
+  if (REVERSE_TYPES.length) {
+    const entries = Object.entries(await import(pathToFileURL(join(ROOT, 'dist', 'index.mjs')).href).then((m) => m.ThemeAnimationType))
+    console.log(`\n=== D. reverse 反向形态（${REVERSE_TYPES.join('/')}，dark→light，跳过圆拟合） ===`)
+    for (const key of REVERSE_TYPES) {
+      const value = entries.find(([k]) => k === key || k === key.toUpperCase())?.[1]
+      if (!value) throw new Error(`--reverse-types 未知类型键 "${key}"，可选：${entries.map(([k]) => k).join('/')}`)
+      const rows = await steppedRun(`t-${key}-reverse`, 'dark', { animationType: value, reverse: true })
+      judgeStepped(`  ${key} (reverse)`, rows, 'up', {
+        skipFit: true, // 方形 / 矩形洞不是圆，宽羽化径向洞的拟合值也无单调解释力
+        noiseLen: 2,
+        minDistinct: 4,
+        minInter: 3,
+        spanFromFull: true,
       })
     }
   }

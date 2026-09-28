@@ -129,7 +129,7 @@
 | 实现要点 | **不走「反色 SVG / 收 mask-size」**——§4 那条形状族结论封的只是动 `mask-size` / `mask-position` 这一条路，静止盒子 + 渐变补集（CURTAIN 反向同路数）不在其列。SQUARE / RECTANGLE = 四块边缘板 `add`（免 `@supports`），洞边界 = 触发点 ± 半宽，触发点偏移烘进 stop 的 px 常量（同 RIPPLE 圆心写法）；RECTANGLE 的洞是矩形，与 P3-9 同样需要按轴归一因子。CIRCLE_BLUR = 径向洞 + 宽羽化，机制同 `CIRCLE` reverse 的洞式；软边残留用 RIPPLE 反向已验证的过冲技巧（终值过冲一整段羽化宽） |
 | 参数面 | 零新增 |
 | 待验点 | 取补串两端值是历史雷区（CURTAIN 反向的 `to = -软边`、RIPPLE 反向的 `from = maxRadius + 前缘` 都是实测修正出来的），每个类型探针实测首帧全隐 / 末帧零残留 / 推进曲线；多层 `add` 在 WebKit 与 Firefox 录像口径下全量跑 |
-| 状态 | 待做（执行顺序与验收线见 `docs/next-steps.md` §1，下同） |
+| 状态 | **已落地（v1.14，待需求方验收）**：三类型端值一次通过探针（首帧 6400/6400 全隐、末帧 6400/6400 零残留、推进单调）；实测新增两条端值经验——RECTANGLE 归一因子必须向上舍入（四舍五入偏小则首帧漏 0.01px 级淡边）、CIRCLE_BLUR 的 `to = −羽化` 过冲与 RIPPLE 反向同源。引擎矩阵两脚本加 `--reverse-types` 口子，WebKit 与 Firefox 全绿 |
 
 ### P3-8 参数化小项（不占类型名额）
 

@@ -17,6 +17,7 @@ import {
   SCAN_BAND_ALPHA,
   SCAN_BAND_WIDTH_PX,
   SCAN_FADE_WIDTH_PX,
+  SHAPE_REVERSE_FEATHER_PX,
   SOLID_RECT_MASK_IMAGE,
   SQUARE_COVERAGE_MARGIN,
   STAR_CIRCUMRADIUS_FACTOR,
@@ -25,6 +26,7 @@ import {
   TRIANGLE_CIRCUMRADIUS_FACTOR,
   getBlurCircleMaskGeometry,
   getBlurCircleMaskImage,
+  getBlurCircleReverseRevealSpec,
   getBlindsFeatherPx,
   getBlindsRevealSpec,
   getCircleMaskGeometry,
@@ -40,8 +42,10 @@ import {
   getFanReverseRevealSpec,
   getMaskGeometry,
   getMaxRadiusToCorners,
+  getPanelReverseMaskSpec,
   getQrGridMaskSpec,
   getRectangleMaskGeometry,
+  getRectangleReverseRevealSpec,
   getRevealMaskSpec,
   getRippleFrontExtentPx,
   getRippleMaskSpec,
@@ -49,11 +53,13 @@ import {
   getRippleReverseRevealSpec,
   getScanRevealSpec,
   getSquareMaskGeometry,
+  getSquareReverseRevealSpec,
   getStarMaskGeometry,
   getSweepMaskSpec,
   getTriggerCenter,
   getTriangleMaskGeometry,
   isBlurAnimationType,
+  isPanelReverseAnimationType,
   isQrGridAnimationType,
   isRevealAnimationType,
   isRippleAnimationType,
@@ -827,3 +833,185 @@ describe('CURTAIN（双开门）', () => {
     expect(wide.to - narrow.to).toBe(1920 - 375)
   })
 })
+
+describe('形状反向（SQUARE / RECTANGLE 四板 add）', () => {
+  const center = { x: 400, y: 300 }
+  const f = SHAPE_REVERSE_FEATHER_PX
+  const v = `var(${REVEAL_VAR})`
+  /** 从串里解析四块板的洞边界（extent px 与归一因子，缺省 = 1） */
+  const panels = (img: string): Array<{ extent: number; k: number }> =>
+    [...img.matchAll(/#000 0 calc\(([\d.]+)px - var\(--theme-switch-reveal\)(?: \* ([\d.]+))?\)/g)].map(
+      (m) => ({ extent: Number(m[1]), k: m[2] === undefined ? 1 : Number(m[2]) }),
+    )
+
+  it('软边常量：24px，与 CURTAIN_FEATHER_PX 同值但独立定义（语义一个是幕布、一个是洞边斜坡）', () => {
+    expect(SHAPE_REVERSE_FEATHER_PX).toBe(24)
+    expect(SHAPE_REVERSE_FEATHER_PX).toBe(CURTAIN_FEATHER_PX)
+  })
+
+  it('SQUARE 中心触发：四块边缘板 90/270/180/0 度，洞边界 = 触发点 ± 半宽，无归一因子', () => {
+    const spec = getSquareReverseRevealSpec(center, viewport)
+    const layer = (angle: number, e: number): string =>
+      `linear-gradient(${angle}deg, #000 0 calc(${e}px - ${v}), transparent calc(${e}px - ${v} + ${f}px))`
+    expect(spec.maskImage).toBe(
+      [layer(90, 400), layer(270, 400), layer(180, 300), layer(0, 300)].join(', '),
+    )
+    expect(spec.maskImage.match(/linear-gradient\(/g)).toHaveLength(4)
+    expect(spec.maskSize).toBe('100% 100%, 100% 100%, 100% 100%, 100% 100%')
+    expect(spec.maskRepeat).toBe('no-repeat, no-repeat, no-repeat, no-repeat')
+  })
+
+  it('SQUARE 偏心触发：四板 extent 各取对应半边界，触发点偏移烘进 px 常量', () => {
+    const spec = getSquareReverseRevealSpec({ x: 100, y: 0 }, viewport)
+    expect(spec.maskImage).toContain(`linear-gradient(90deg, #000 0 calc(100px - ${v})`)
+    expect(spec.maskImage).toContain(`linear-gradient(270deg, #000 0 calc(700px - ${v})`)
+    expect(spec.maskImage).toContain(`linear-gradient(180deg, #000 0 calc(0px - ${v})`)
+    expect(spec.maskImage).toContain(`linear-gradient(0deg, #000 0 calc(600px - ${v})`)
+  })
+
+  it('from = max(halfW, halfH) + 软边、to = 0：起点不照抄正向的 1.05 覆盖余量（照抄只会空转）', () => {
+    expect(getSquareReverseRevealSpec(center, viewport).from).toBe(400 + f)
+    expect(getSquareReverseRevealSpec(center, viewport).to).toBe(0)
+    // 角落触发：halfW = 800 → 824
+    expect(getSquareReverseRevealSpec({ x: 0, y: 0 }, viewport).from).toBe(800 + f)
+    // 偏心：halfW = max(100, 700) = 700 → 724
+    expect(getSquareReverseRevealSpec({ x: 100, y: 0 }, viewport).from).toBe(700 + f)
+    expect(getSquareReverseRevealSpec(center, viewport).from).toBeLessThan(
+      // 正向终边长的一半是 840/2 = 420 + 软边之外还有 1.05 余量——反向一律不要
+      420 + f,
+    )
+  })
+
+  it('首帧全隐不等式：任意触发点下每块板的斜坡外端 ≤ 0（中心与四角穷举）', () => {
+    for (const c of [
+      { x: 400, y: 300 },
+      { x: 0, y: 0 },
+      { x: 800, y: 600 },
+      { x: 100, y: 560 },
+    ]) {
+      const spec = getSquareReverseRevealSpec(c, viewport)
+      const ps = panels(spec.maskImage)
+      expect(ps).toHaveLength(4)
+      for (const { extent, k } of ps) {
+        // 斜坡外端 = extent − from×k + 软边；> 0 意味着首帧该板在屏内漏出一段新层
+        expect(extent - spec.from * k + f).toBeLessThanOrEqual(0)
+      }
+    }
+  })
+
+  it('末帧零残留的数学：to = 0 时左右板实心段相接（extent 之和 = 视口宽），重叠处 add 取最大', () => {
+    const spec = getSquareReverseRevealSpec({ x: 300, y: 200 }, viewport)
+    const ps = panels(spec.maskImage)
+    expect(ps[0]!.extent).toBe(300) // 左板伸到 cx
+    expect(ps[1]!.extent).toBe(500) // 右板从右边缘伸 (W − cx)
+    expect(ps[0]!.extent + ps[1]!.extent).toBe(viewport.width)
+    expect(ps[2]!.extent + ps[3]!.extent).toBe(viewport.height)
+    // k 恒为 1（SQUARE 洞保持正方形），to = 0 时归一因子不参与
+    for (const { k } of ps) expect(k).toBe(1)
+  })
+
+  it('RECTANGLE：洞按轴归一保持视口比例（不退化成正方形撞 SQUARE 的身份），因子烘进串', () => {
+    const spec = getRectangleReverseRevealSpec({ x: 100, y: 300 }, viewport)
+    const base = 700 + f // max(halfW=700, halfH=300) + 软边
+    const ky = ceil4((300 + f) / base)
+    expect(spec.from).toBe(base)
+    // kx = 1（水平轴就是基准轴）省略因子；ky < 1 显式写出
+    expect(spec.maskImage).toContain(
+      `linear-gradient(90deg, #000 0 calc(100px - ${v}), transparent calc(100px - ${v} + ${f}px))`,
+    )
+    expect(spec.maskImage).toContain(
+      `linear-gradient(180deg, #000 0 calc(300px - ${v} * ${ky}), transparent calc(300px - ${v} * ${ky} + ${f}px))`,
+    )
+  })
+
+  it('RECTANGLE 首帧全隐：软边在归一因子内，窄轴的斜坡外端仍 ≤ 0（因子外留软边会漏淡边）', () => {
+    for (const c of [
+      { x: 100, y: 300 },
+      { x: 400, y: 50 },
+      { x: 700, y: 550 },
+    ]) {
+      const spec = getRectangleReverseRevealSpec(c, viewport)
+      for (const { extent, k } of panels(spec.maskImage)) {
+        expect(extent - spec.from * k + f).toBeLessThanOrEqual(0)
+      }
+    }
+  })
+
+  it('RECTANGLE 末帧零残留：to = 0 时归一因子不参与，四板相接覆盖全屏', () => {
+    const spec = getRectangleReverseRevealSpec({ x: 100, y: 300 }, viewport)
+    const ps = panels(spec.maskImage)
+    expect(ps[0]!.extent + ps[1]!.extent).toBe(viewport.width)
+    expect(ps[2]!.extent + ps[3]!.extent).toBe(viewport.height)
+    expect(spec.to).toBe(0)
+  })
+
+  it('分发与守卫：isPanelReverseAnimationType 只认 SQUARE / RECTANGLE，其余形状族仍未接入', () => {
+    expect(isPanelReverseAnimationType(ThemeAnimationType.SQUARE)).toBe(true)
+    expect(isPanelReverseAnimationType(ThemeAnimationType.RECTANGLE)).toBe(true)
+    for (const type of [
+      ThemeAnimationType.CIRCLE,
+      ThemeAnimationType.DIAMOND,
+      ThemeAnimationType.HEXAGON,
+      ThemeAnimationType.TRIANGLE,
+      ThemeAnimationType.STAR,
+      ThemeAnimationType.CIRCLE_BLUR,
+      ThemeAnimationType.BLINDS,
+    ] as const) {
+      expect(isPanelReverseAnimationType(type)).toBe(false)
+    }
+    expect(getPanelReverseMaskSpec(ThemeAnimationType.SQUARE, center, viewport)).toEqual(
+      getSquareReverseRevealSpec(center, viewport),
+    )
+    expect(getPanelReverseMaskSpec(ThemeAnimationType.RECTANGLE, center, viewport)).toEqual(
+      getRectangleReverseRevealSpec(center, viewport),
+    )
+  })
+})
+
+describe('CIRCLE_BLUR 反向（径向洞 + 宽羽化）', () => {
+  const center = { x: 400, y: 300 }
+  const v = `var(${REVEAL_VAR})`
+  /** 羽化半宽 = blurAmount × 1.2 × 正向终尺寸 / 100，终尺寸与正向几何对拍（不许两处漂移） */
+  const featherOf = (blurAmount: number): number => {
+    const endSize = Number(getBlurCircleMaskGeometry(center, viewport, blurAmount).endSize.split('px')[0])
+    return Math.round((blurAmount * BLUR_MASK_DEVIATION_FACTOR * endSize) / 100 * 100) / 100
+  }
+
+  it('串结构：径向洞透明核 + 宽羽化斜坡，圆心 = 触发点（机制同 CIRCLE reverse 洞式）', () => {
+    const feather = featherOf(2) // 终尺寸 4000 → 2 × 1.2 × 40 = 96
+    expect(feather).toBe(96)
+    const spec = getBlurCircleReverseRevealSpec(center, viewport, 2)
+    expect(spec.maskImage).toBe(
+      `radial-gradient(circle at 400px 300px, transparent calc(${v} - ${feather}px), #000 calc(${v} + ${feather}px))`,
+    )
+    expect(spec.maskSize).toBe('100% 100%')
+    expect(spec.maskRepeat).toBe('no-repeat')
+  })
+
+  it('两端都不照抄正向：from = maxRadius + 羽化（正向 4×(长边+200) 是 mask-size 的覆盖余量）、to = −羽化（过冲一整段羽化宽）', () => {
+    const spec = getBlurCircleReverseRevealSpec(center, viewport, 2)
+    const feather = featherOf(2)
+    const maxR = getMaxRadiusToCorners(center, viewport)
+    expect(spec.from).toBe(maxR + feather)
+    expect(spec.to).toBe(-feather)
+    // 首帧全透明段（from − 羽化）盖住视口最远角；末帧 #000 段（to + 羽化 ≤ 0）从 0 起盖满全屏
+    expect(spec.from - feather).toBeGreaterThanOrEqual(maxR)
+    expect(spec.to + feather).toBeLessThanOrEqual(0)
+    // 不过冲（to = 0）会像 RIPPLE 反向一样在中心留半透明点
+    expect(spec.to).toBeLessThan(0)
+  })
+
+  it('羽化随 blurAmount 增宽：模糊越强，收拢的软边与过冲量同步变大', () => {
+    expect(getBlurCircleReverseRevealSpec(center, viewport, 3).to).toBeLessThan(
+      getBlurCircleReverseRevealSpec(center, viewport, 2).to,
+    )
+    expect(getBlurCircleReverseRevealSpec(center, viewport, 3).from).toBeGreaterThan(
+      getBlurCircleReverseRevealSpec(center, viewport, 2).from,
+    )
+  })
+})
+
+/** 测试内专用：与 masks.ts 的因子舍入对拍（ceil 到 4 位，偏大保守、不欠覆盖） */
+function ceil4(value: number): number {
+  return Math.ceil(value * 10000 - 1e-6) / 10000
+}

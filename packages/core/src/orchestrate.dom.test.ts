@@ -296,7 +296,123 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
     expect(forward).not.toContain('270deg')
   })
 
-  it('reverse 未接入的类型传 true 也静默无效：QR_GRID / BLINDS / SCAN 输出不变', () => {
+  it('reverse 已接入 SQUARE：四块边缘板 add 静止盒子，正向 mask-size 路径不受影响', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    const trigger = { getBoundingClientRect: () => ({ left: 100, top: 50, width: 40, height: 20 }) }
+
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.SQUARE, reverse: true },
+    })
+    const reversed = styleNode()!.textContent!
+    removeAnimationStyle(document)
+
+    // 中心 (120, 60)：四板 extent = 120 / 680 / 60 / 540，软边 24，from = max(680,540)+24 = 704
+    expect(reversed).toContain('@property --theme-switch-reveal')
+    expect(reversed).toContain('linear-gradient(90deg, #000 0 calc(120px - var(--theme-switch-reveal)), transparent calc(120px - var(--theme-switch-reveal) + 24px))')
+    expect(reversed).toContain('linear-gradient(270deg, #000 0 calc(680px - var(--theme-switch-reveal)), transparent calc(680px - var(--theme-switch-reveal) + 24px))')
+    expect(reversed).toContain('linear-gradient(180deg, #000 0 calc(60px - var(--theme-switch-reveal)), transparent calc(60px - var(--theme-switch-reveal) + 24px))')
+    expect(reversed).toContain('linear-gradient(0deg, #000 0 calc(540px - var(--theme-switch-reveal)), transparent calc(540px - var(--theme-switch-reveal) + 24px))')
+    expect(reversed).toContain('mask-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;')
+    expect(reversed).toContain('mask-repeat: no-repeat, no-repeat, no-repeat, no-repeat;')
+    expect(reversed).toContain('--theme-switch-reveal: 704px;')
+    expect(reversed).toContain('--theme-switch-reveal: 0px;')
+    // 走的是注册属性路径，不是正向那条 mask-size / mask-position 关键帧
+    expect(reversed).not.toContain('will-change')
+    expect(reversed).not.toContain('mask-size: 0px')
+
+    // 正向仍是 SVG 蒙版 + mask-size 驱动，未被连带改动
+    runThemeTransition({ domUpdate: () => {}, trigger, options: { animationType: ThemeAnimationType.SQUARE } })
+    const forward = styleNode()!.textContent!
+    expect(forward).toContain('@keyframes theme-switch-square')
+    expect(forward).toContain('will-change: mask-size, mask-position')
+    expect(forward).not.toContain('@property --theme-switch-reveal')
+  })
+
+  it('reverse 已接入 RECTANGLE：洞按轴归一保持视口比例，基准轴省略因子、窄轴显式写出', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    const trigger = { getBoundingClientRect: () => ({ left: 100, top: 50, width: 40, height: 20 }) }
+
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.RECTANGLE, reverse: true },
+    })
+    const reversed = styleNode()!.textContent!
+
+    // halfW = 680（基准轴，kx = 1 省略）、halfH = 540 → ky = ceil4(564/704) = 0.8012
+    expect(reversed).toContain('linear-gradient(90deg, #000 0 calc(120px - var(--theme-switch-reveal))')
+    expect(reversed).toContain('linear-gradient(180deg, #000 0 calc(60px - var(--theme-switch-reveal) * 0.8012)')
+    expect(reversed).toContain('--theme-switch-reveal: 704px;')
+  })
+
+  it("RECTANGLE + reverse:'auto' 切暗正向 / 切亮反向（collapse 判定与 CIRCLE 共用）", () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    const trigger = { getBoundingClientRect: () => ({ left: 100, top: 50, width: 40, height: 20 }) }
+
+    // <html> 处于暗色 → 本次切亮 → 'auto' 判定收起
+    document.documentElement.classList.add('dark')
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.RECTANGLE, reverse: 'auto' },
+    })
+    expect(styleNode()!.textContent!).toContain('@property --theme-switch-reveal')
+    removeAnimationStyle(document)
+
+    // 无暗色类 → 切暗 → 正向扩散
+    document.documentElement.classList.remove('dark')
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.RECTANGLE, reverse: 'auto' },
+    })
+    expect(styleNode()!.textContent!).toContain('will-change: mask-size, mask-position')
+    expect(styleNode()!.textContent!).not.toContain('@property --theme-switch-reveal')
+  })
+
+  it('reverse 已接入 CIRCLE_BLUR：径向洞宽羽化，起点 = maxRadius + 羽化、终点过冲一整段羽化宽', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    const trigger = { getBoundingClientRect: () => ({ left: 100, top: 50, width: 40, height: 20 }) }
+
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.CIRCLE_BLUR, reverse: true },
+    })
+    const reversed = styleNode()!.textContent!
+    removeAnimationStyle(document)
+
+    // maxR = hypot(680, 540)、endSize = max(4×1000, 2.5maxR) = 4000 → 羽化 = 2×1.2×40 = 96
+    const maxR = Math.hypot(680, 540)
+    expect(reversed).toContain(
+      'radial-gradient(circle at 120px 60px, transparent calc(var(--theme-switch-reveal) - 96px), #000 calc(var(--theme-switch-reveal) + 96px))',
+    )
+    expect(reversed).toContain(`--theme-switch-reveal: ${(maxR + 96).toFixed(2)}px;`)
+    expect(reversed).toContain('--theme-switch-reveal: -96px;')
+
+    // 正向仍是 feGaussianBlur SVG 蒙版 + mask-size 驱动
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.CIRCLE_BLUR },
+    })
+    const forward = styleNode()!.textContent!
+    expect(forward).toContain('feGaussianBlur')
+    expect(forward).toContain('will-change: mask-size, mask-position')
+    expect(forward).not.toContain('@property --theme-switch-reveal')
+  })
+
+  it('reverse 未接入的类型传 true 也静默无效：QR_GRID / BLINDS / SCAN / 其余形状族输出不变', () => {
     installFakeViewTransition()
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
@@ -304,6 +420,8 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
 
     for (const animationType of [
       ThemeAnimationType.QR_GRID, ThemeAnimationType.BLINDS, ThemeAnimationType.SCAN,
+      ThemeAnimationType.DIAMOND, ThemeAnimationType.HEXAGON, ThemeAnimationType.TRIANGLE,
+      ThemeAnimationType.STAR,
     ]) {
       runThemeTransition({ domUpdate: () => {}, trigger, options: { animationType } })
       const baseline = styleNode()!.textContent!

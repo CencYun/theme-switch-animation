@@ -1,11 +1,15 @@
 import {
+  getBlurCircleReverseRevealSpec,
   getCircleRevertHoleGeometry,
   getMaskGeometry,
+  getPanelReverseMaskSpec,
   getQrGridMaskSpec,
   getRevealMaskSpec,
   getRippleMaskSpec,
   getSweepMaskSpec,
   getTriggerCenter,
+  isBlurAnimationType,
+  isPanelReverseAnimationType,
   isQrGridAnimationType,
   isRevealAnimationType,
   isRippleAnimationType,
@@ -167,13 +171,16 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
   // toggle 后必为取反。
   const toDark = nextIsDark ?? !hasThemeClass(doc, resolved.darkClassName)
   // 本次转场是否走反向形态。只有已接入的类型才算数：CIRCLE / FAN / RIPPLE / CLOCK_SWEEP /
-  // CURTAIN。其余传 reverse 静默忽略——形状族要走反向只能动 mask-size（附录四/五的抖动病根），
-  // 做不到无副作用（见 roadmap §4）。
+  // CURTAIN / SQUARE / RECTANGLE / CIRCLE_BLUR。其余传 reverse 静默忽略——形状族其余 5 个
+  // （DIAMOND / HEXAGON / TRIANGLE / STAR）要走反向只能动 mask-size（附录四/五的抖动病根），
+  // 做不到无副作用；BLINDS / SCAN / QR_GRID 由 direction 占那根轴（见 roadmap §4）。
   const reverseCapable = resolved.animationType === ThemeAnimationType.CIRCLE
     || resolved.animationType === ThemeAnimationType.FAN
     || resolved.animationType === ThemeAnimationType.RIPPLE
     || resolved.animationType === ThemeAnimationType.CLOCK_SWEEP
     || resolved.animationType === ThemeAnimationType.CURTAIN
+    || isPanelReverseAnimationType(resolved.animationType)
+    || isBlurAnimationType(resolved.animationType)
   const collapse = reverseCapable
     && (resolved.reverse === true || (resolved.reverse === 'auto' && !toDark))
   // CIRCLE 的反向用洞式蒙版：挂新截图层、掏一个从全屏收缩到 0 的洞（层序与 CIRCLE 一致、
@@ -184,13 +191,19 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
     : undefined
   // 属性驱动揭开（BLINDS / SCAN / RIPPLE / CLOCK_SWEEP / FAN）：蒙版盒子静止、注册属性在动，
   // 共用同一 CSS 生成器。BLINDS / SCAN 无触发点；RIPPLE 与角度族以触发点为波源 / 轴心。
+  // SQUARE / RECTANGLE / CIRCLE_BLUR 正向走 mask-size 驱动的 geometry，反向才落到 reveal
+  // 串上（四板 add / 径向洞宽羽化），与 CIRCLE 反向走 holeGeometry 的分流方式同构。
   const reveal = isRevealAnimationType(resolved.animationType)
     ? getRevealMaskSpec(resolved.animationType, resolved.direction, resolved.slatWidth, viewport, collapse)
     : isRippleAnimationType(resolved.animationType)
       ? getRippleMaskSpec(center, viewport, resolved.waveWidth, collapse)
       : isSweepAnimationType(resolved.animationType)
         ? getSweepMaskSpec(resolved.animationType, center, resolved.bladeCount, collapse)
-        : undefined
+        : collapse && isPanelReverseAnimationType(resolved.animationType)
+          ? getPanelReverseMaskSpec(resolved.animationType, center, viewport)
+          : collapse && isBlurAnimationType(resolved.animationType)
+            ? getBlurCircleReverseRevealSpec(center, viewport, resolved.blurAmount)
+            : undefined
   // QR_GRID：新层"列 ∩ 行"方块格子双层蒙版，同样无触发点。
   const qrGrid = isQrGridAnimationType(resolved.animationType)
     ? getQrGridMaskSpec(resolved.direction)

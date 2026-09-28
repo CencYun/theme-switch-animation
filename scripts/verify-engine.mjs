@@ -95,7 +95,7 @@ const monotonic = (arr, dir, tol) => {
   return bad
 }
 
-const REPORT = { label: LABEL, ua: '', version: '', probes: {}, mode: '', revert: {}, types: [], consoleErrors: [], pageErrors: [] }
+const REPORT = { label: LABEL, ua: '', version: '', probes: {}, mode: '', revert: {}, types: [], reverses: [], consoleErrors: [], pageErrors: [] }
 const failures = []
 const consoleErrors = []
 const pageErrors = []
@@ -290,6 +290,70 @@ try {
     )
     if (!progressing) failures.push(`${key}：蒙版轨迹未推进（亮度 ${lumText}，中段档数 ${distinct}，逆序 ${badStep}，差异 ${(diffFrac * 100).toFixed(1)}%）`)
     if (outcome !== 'ok') failures.push(`${key}：outcome=${outcome}`)
+    await sleep(150)
+  }
+
+  // ---------- 3b. reverse 反向形态（--reverse-types=square,rectangle,circle-blur，可选） ----------
+  // dark→light、reverse: true，判据与第 3 条镜像：亮度从暗(<40)单调推进到亮(>200)、
+  // 末帧之前的档位数 ≥3（离散翻转只有 1 档）、起↔中点像素差异 >2%。P3-7 的四板 add
+  // 补集串与 CIRCLE_BLUR 宽羽化洞在非 Chromium 引擎上的推进证据走这段。
+  const REVERSE_TYPES = args['reverse-types']
+    ? String(args['reverse-types']).split(',').map((s) => s.trim()).filter(Boolean)
+    : []
+  for (const key of REVERSE_TYPES) {
+    const value = TYPE_ENTRIES.find(([k]) => k === key || k === key.toUpperCase())?.[1]
+    if (!value) throw new Error(`--reverse-types 未知类型键 "${key}"，可选：${TYPE_ENTRIES.map(([k]) => k).join('/')}`)
+    await page.evaluate(`window.__lab.reset('dark')`)
+    await sleep(120)
+    let n = 0
+    const dur = REPORT.mode === 'seek' ? 600 : 1600
+    const res = await page.evaluate(
+      `window.__lab.start({ duration: ${dur}, animationType: ${JSON.stringify(value)}, reverse: true })`,
+    )
+    if (!res?.animated) throw new Error(`${key} reverse: 转场未启动`)
+    if (REPORT.mode === 'seek') {
+      n = await page.evaluate('window.__lab.waitForAnimation()')
+      await page.evaluate('window.__lab.pause()')
+    }
+    const shots = []
+    const t0 = Date.now()
+    for (const f of REL) {
+      if (REPORT.mode === 'seek') await page.evaluate(`window.__lab.seek(${Math.round(dur * f)})`)
+      else await sleep(Math.max(0, dur * f - (Date.now() - t0)))
+      shots.push(await shot())
+    }
+    if (REPORT.mode === 'seek') await page.evaluate('window.__lab.finish()')
+    const outcome = await waitOutcome()
+    shots[shots.length - 1] = await shot() // 实时模式下末帧要取结算后的稳定态
+    const L = shots.map(meanLum)
+    const midIdx = Math.floor(REL.length / 2)
+    let diff = 0
+    let n2 = 0
+    for (let i = 0; i < shots[0].lum.length; i += 5) {
+      if (Math.abs(shots[0].lum[i] - shots[midIdx].lum[i]) > 30) diff++
+      n2++
+    }
+    const diffFrac = diff / n2
+    const distinct = distinctCount(L.slice(0, -1), 8)
+    const tol = REPORT.mode === 'seek' ? 2 : 8
+    const badStep = monotonic(L, 'up', tol)
+    const lumText = L.map((v) => v.toFixed(0)).join('→')
+    const progressing = L[0] < 40 && L.at(-1) > 200 && distinct >= 3 && badStep === 0 && diffFrac > 0.02
+    REPORT.reverses.push({
+      key,
+      maskAnimations: n,
+      lum: L,
+      distinct,
+      badStep,
+      diffFrac: Math.round(diffFrac * 1000) / 1000,
+      outcome,
+      progressing,
+    })
+    console.log(
+      `  ${key.padEnd(14)} (reverse) ${REPORT.mode === 'seek' ? `蒙版动画=${n}  ` : ''}亮度 ${lumText}  中段档数 ${distinct}  逆序 ${badStep}  Δ(起,中)=${(diffFrac * 100).toFixed(1)}%  outcome=${outcome}  ${progressing ? '✓' : '✗'}`,
+    )
+    if (!progressing) failures.push(`${key} reverse：蒙版轨迹未推进（亮度 ${lumText}，中段档数 ${distinct}，逆序 ${badStep}，差异 ${(diffFrac * 100).toFixed(1)}%）`)
+    if (outcome !== 'ok') failures.push(`${key} reverse：outcome=${outcome}`)
     await sleep(150)
   }
 

@@ -207,7 +207,7 @@ const ANIMATION_TYPES: Array<{
   initialWaveWidth?: number
   /** 仅 FAN：卡片内渲染扇叶数选择器（初始扇叶数） */
   initialBladeCount?: number
-  /** 仅 reverse 已接通的 5 个类型：卡片内渲染反向三档选择器（初始值） */
+  /** 仅 reverse 已接通的 8 个类型：卡片内渲染反向三档选择器（初始值） */
   initialReverse?: boolean | 'auto'
   Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
   /** 渐变图标砖：亮 / 暗两套底色 + 图标色（写全类名，避免动态拼接被 Tailwind 摇掉） */
@@ -225,6 +225,7 @@ const ANIMATION_TYPES: Array<{
     type: ThemeAnimationType.CIRCLE_BLUR,
     label: 'CIRCLE_BLUR',
     hint: '圆形模糊扩散',
+    initialReverse: false,
     Icon: IcoBlur,
     tile: 'from-amber-100 to-amber-200 text-amber-600 dark:from-amber-500/15 dark:to-amber-500/5 dark:text-amber-400',
   },
@@ -232,6 +233,7 @@ const ANIMATION_TYPES: Array<{
     type: ThemeAnimationType.SQUARE,
     label: 'SQUARE',
     hint: '正方形扩散',
+    initialReverse: false,
     Icon: IcoShape('5,5 19,5 19,19 5,19'),
     tile: 'from-emerald-100 to-emerald-200 text-emerald-600 dark:from-emerald-500/15 dark:to-emerald-500/5 dark:text-emerald-400',
   },
@@ -246,6 +248,7 @@ const ANIMATION_TYPES: Array<{
     type: ThemeAnimationType.RECTANGLE,
     label: 'RECTANGLE',
     hint: '矩形 · 贴合视口比例',
+    initialReverse: false,
     Icon: IcoRect,
     tile: 'from-cyan-100 to-cyan-200 text-cyan-600 dark:from-cyan-500/15 dark:to-cyan-500/5 dark:text-cyan-400',
   },
@@ -356,7 +359,8 @@ const DIRECTION_OPTIONS: ReadonlyArray<{
 ]
 
 /**
- * reverse 三档：仅已接通的 5 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN）。
+ * reverse 三档：仅已接通的 8 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN /
+ * SQUARE / RECTANGLE / CIRCLE_BLUR）。
  * 与 Direction 正交——Direction 定推进轴，Reverse 定从内还是从外揭开；
  * `auto` 是"切暗正向、切亮收起"，即跟随本次切换方向。
  */

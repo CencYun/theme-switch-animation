@@ -282,13 +282,47 @@ export function getBlurCircleMaskImage(blurAmount: number): string {
  */
 export const BLUR_MAX_MASK_SIZE = 8000
 
-export function getBlurCircleMaskGeometry(center: Point, viewport: Size, blurAmount: number): MaskGeometry {
+/** CIRCLE_BLUR 蒙版终尺寸：正向（mask-size 驱动）与反向（羽化宽度换算）共用同一公式，防止两处漂移 */
+function blurMaskEndSizePx(center: Point, viewport: Size): number {
   const longestSide = Math.max(viewport.width, viewport.height)
-  const endSize = Math.min(
+  return Math.min(
     BLUR_MAX_MASK_SIZE,
     Math.max((longestSide + 200) * 4, getMaxRadiusToCorners(center, viewport) * 2.5),
   )
+}
+
+export function getBlurCircleMaskGeometry(center: Point, viewport: Size, blurAmount: number): MaskGeometry {
+  const endSize = blurMaskEndSizePx(center, viewport)
   return pinCenterGeometry(getBlurCircleMaskImage(blurAmount), center, { width: endSize, height: endSize })
+}
+
+/**
+ * CIRCLE_BLUR 反向：模糊边界的径向洞从全屏收拢到 0，机制同 `CIRCLE` reverse 的洞式
+ * （新层挂洞、盒子静止），差别在羽化——洞边不是 ±0.5px 的防锯齿斜坡，
+ * 而是模拟正向 feGaussianBlur 观感的宽羽化。
+ *
+ * 羽化半宽取正向模糊边的像素 σ（`σ = blurAmount × 系数 × 终尺寸/100`，viewBox 100 单位、
+ * stdDeviation 单位随蒙版缩放），让收拢时的软边宽度与正向扩散时的模糊边一致。
+ *
+ * 端值是 RIPPLE 反向已踩过的雷，不照抄任何正向余量：
+ * - `from = maxRadius + 羽化`：首帧全透明段（v − 羽化以内）恰好盖住视口最远角。
+ *   正向那个 4×(长边+200) 的终尺寸是给 mask-size 留的覆盖余量，照抄成起点只会空转。
+ * - `to = −羽化`：主斜坡的中点归零时中心 α 仍 < 1（RIPPLE 反向"收到 0 留半透明点"的同款问题，
+ *   软边越宽越明显），终值要**过冲一整段羽化宽**，让 #000 段从 0 起盖满全屏。
+ */
+export function getBlurCircleReverseRevealSpec(center: Point, viewport: Size, blurAmount: number): RevealMaskSpec {
+  const maxRadius = getMaxRadiusToCorners(center, viewport)
+  const feather = roundTo((blurAmount * BLUR_MASK_DEVIATION_FACTOR * blurMaskEndSizePx(center, viewport)) / 100, 2)
+  const v = `var(${REVEAL_VAR})`
+  return {
+    from: roundTo(maxRadius + feather, 2),
+    to: -feather,
+    maskImage:
+      `radial-gradient(circle at ${roundTo(center.x, 2)}px ${roundTo(center.y, 2)}px,` +
+      ` transparent calc(${v} - ${feather}px), #000 calc(${v} + ${feather}px))`,
+    maskSize: '100% 100%',
+    maskRepeat: 'no-repeat',
+  }
 }
 
 /**
@@ -430,11 +464,109 @@ export function getCurtainReverseRevealSpec(viewport: Size): RevealMaskSpec {
 }
 
 /**
- * 属性驱动规格的分发参数：`reverse` 位目前只有 CURTAIN 需要单独走构造器，
- * 其余类型反向即正向取补，在各自函数内部处理。
+ * CURTAIN 的分发：reverse 位在"中线对称推开"与"两侧板向中线合拢"两条串之间切换，默认正向。
+ * （SQUARE / RECTANGLE / CIRCLE_BLUR 的反向构造在各自函数上，由 orchestrate 直接分流。）
  */
 export function getCurtainMaskSpec(viewport: Size, reverse = false): RevealMaskSpec {
   return reverse ? getCurtainReverseRevealSpec(viewport) : getCurtainRevealSpec(viewport)
+}
+
+/**
+ * 形状反向（SQUARE / RECTANGLE 四块边缘板构造）的软边宽度（px）。
+ * 与 `CURTAIN_FEATHER_PX` 同值但语义独立：一个是幕布、一个是洞边界斜坡，
+ * 分开定义防止将来调一个带动另一个。
+ */
+export const SHAPE_REVERSE_FEATHER_PX = 24
+
+/**
+ * 形状反向（SQUARE / RECTANGLE）共用的构造：四块边缘板 `add`（默认合成，免 `@supports`），
+ * 新层中心掏一个「触发点 ± 半宽」的洞，洞随 `REVEAL_VAR` 从盖满视口收到 0——
+ * 观感即正向"形状从触发点长大"的镜像（同 `CIRCLE` reverse 的洞式，只是洞是矩形轮廓）。
+ *
+ * **不走「反色 SVG / 收 mask-size」**：那是 roadmap §4 封掉的设备像素对齐抖动病根；
+ * 这里蒙版盒子完全静止，逐帧只有注册属性在动（与 CURTAIN 反向同路数）。
+ *
+ * 端值推导（探针实测前的数学基线，两端值是历史雷区、不许照抄任何正向余量）：
+ * - `from = max(halfW, halfH) + 软边`：每块板的斜坡外端恰好落在（或越过）视口外
+ *   （左板斜坡外端 = cx − V0×kx + f ≤ cx − halfW ≤ 0），首帧四板全透明、新层全隐。
+ *   不取正向 SQUARE 的 1.05 覆盖余量——那是"末帧盖满"的余量，反向的末帧覆盖
+ *   由 `to = 0` 时相邻板实心段相接、`add` 取最大值保证，多留只会空转。
+ * - `to = 0`：左板实心 [0, cx]、右板实心 [cx, W]，相接处的两条斜坡重叠取 max = 1，零残留。
+ */
+function panelReverseRevealSpec(
+  center: Point,
+  viewport: Size,
+  /** 洞半宽沿两轴的缩放因子：SQUARE 恒 1（洞保持正方形），RECTANGLE 按轴归一（洞保持视口比例） */
+  kx: number,
+  ky: number,
+): RevealMaskSpec {
+  const { halfW, halfH } = maxHalfExtent(center, viewport)
+  const f = SHAPE_REVERSE_FEATHER_PX
+  const v = `var(${REVEAL_VAR})`
+  /**
+   * 因子向上舍入（ceil 到 4 位）：四舍五入可能向下舍，k 偏小会让首帧斜坡外端
+   * 溢出视口沿零点几个像素（实测 round4(324/724) 漏 0.01px）；k 偏大只会让首帧
+   * 洞边界更负，覆盖只会更保守，比例偏差 ≤ 1e-4 观感无差。
+   */
+  const ceil4 = (k: number): number => Math.ceil(k * 10000 - 1e-6) / 10000
+  /** 洞边界（触发点偏移烘进 px 常量，k = 1 时省略归一因子） */
+  const term = (extent: number, k: number): string =>
+    k === 1 ? `${roundTo(extent, 2)}px - ${v}` : `${roundTo(extent, 2)}px - ${v} * ${ceil4(k)}`
+  const layer = (angle: number, extent: number, k: number): string =>
+    `linear-gradient(${angle}deg, #000 0 calc(${term(extent, k)}), transparent calc(${term(extent, k)} + ${f}px))`
+  return {
+    from: Math.max(halfW, halfH) + f,
+    to: 0,
+    maskImage: [
+      layer(90, roundTo(center.x, 2), kx),
+      layer(270, roundTo(viewport.width - center.x, 2), kx),
+      layer(180, roundTo(center.y, 2), ky),
+      layer(0, roundTo(viewport.height - center.y, 2), ky),
+    ].join(', '),
+    maskSize: '100% 100%, 100% 100%, 100% 100%, 100% 100%',
+    maskRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
+  }
+}
+
+/**
+ * SQUARE 反向：洞是正方形（半宽 = 半高 = v，两轴不归一），
+ * `from = max(halfW, halfH) + 软边` 时两轴都满足首帧覆盖（V0 ≥ 各轴 half + f）。
+ */
+export function getSquareReverseRevealSpec(center: Point, viewport: Size): RevealMaskSpec {
+  return panelReverseRevealSpec(center, viewport, 1, 1)
+}
+
+/**
+ * RECTANGLE 反向：洞保持视口宽高比——身份轴就在这，若两轴共用同一个 v，
+ * 洞会退化成正方形、观感与 SQUARE reverse 撞车。
+ * 归一因子把「半宽 + 软边」整体归到基准 V0 上（kx = (halfW+f)/V0），
+ * 保证首帧斜坡外端 = cx − halfW ≤ 0 依旧精确成立（软边不能留在因子外，否则 k < 1 的轴漏一条淡边）。
+ */
+export function getRectangleReverseRevealSpec(center: Point, viewport: Size): RevealMaskSpec {
+  const { halfW, halfH } = maxHalfExtent(center, viewport)
+  const base = Math.max(halfW, halfH) + SHAPE_REVERSE_FEATHER_PX
+  return panelReverseRevealSpec(
+    center,
+    viewport,
+    (halfW + SHAPE_REVERSE_FEATHER_PX) / base,
+    (halfH + SHAPE_REVERSE_FEATHER_PX) / base,
+  )
+}
+
+/** SQUARE / RECTANGLE：反向走四板构造的类型守卫（其余形状族仍未接入，见 roadmap §4） */
+export function isPanelReverseAnimationType(type: ThemeAnimationType): boolean {
+  return type === ThemeAnimationType.SQUARE || type === ThemeAnimationType.RECTANGLE
+}
+
+/** 形状反向分发；仅接受 isPanelReverseAnimationType 命中的类型 */
+export function getPanelReverseMaskSpec(
+  type: ThemeAnimationType,
+  center: Point,
+  viewport: Size,
+): RevealMaskSpec {
+  return type === ThemeAnimationType.RECTANGLE
+    ? getRectangleReverseRevealSpec(center, viewport)
+    : getSquareReverseRevealSpec(center, viewport)
 }
 
 export function isRevealAnimationType(type: ThemeAnimationType): boolean {
