@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { useTheme } from 'next-themes'
 import { ThemeAnimationDirection, ThemeAnimationType, useThemeAnimation } from 'theme-switch-animation/react'
+import type { ThemeAnimationCellShape } from 'theme-switch-animation/react'
 
 const ANIMATION_TYPES: Array<{
   type: ThemeAnimationType
@@ -13,28 +14,31 @@ const ANIMATION_TYPES: Array<{
   initialDirection?: ThemeAnimationDirection
   /** 仅 BLINDS：卡片下方渲染叶宽选择按钮 */
   initialSlatWidth?: number
+  /** 仅 QR_GRID：卡片下方渲染格距与格子形状选择按钮 */
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   /** 仅 RIPPLE：卡片下方渲染波长选择按钮 */
   initialWaveWidth?: number
   /** 仅 FAN：卡片下方渲染扇叶数选择按钮 */
   initialBladeCount?: number
-  /** 仅 reverse 已接通的 5 个类型：卡片下方渲染反向三档按钮 */
+  /** 仅 reverse 已接通的 9 个类型：卡片下方渲染反向三档按钮 */
   initialReverse?: boolean | 'auto'
 }> = [
   { type: ThemeAnimationType.CIRCLE, label: 'CIRCLE', hint: '圆形扩散 · 圆心 = 点击位置', initialReverse: false },
-  { type: ThemeAnimationType.CIRCLE_BLUR, label: 'CIRCLE_BLUR', hint: '圆形模糊扩散 · 边缘高斯模糊' },
-  { type: ThemeAnimationType.SQUARE, label: 'SQUARE', hint: '正方形扩散' },
-  { type: ThemeAnimationType.DIAMOND, label: 'DIAMOND', hint: '菱形扩散' },
-  { type: ThemeAnimationType.RECTANGLE, label: 'RECTANGLE', hint: '矩形扩散 · 贴合视口比例' },
+  { type: ThemeAnimationType.CIRCLE_BLUR, label: 'CIRCLE_BLUR', hint: '圆形模糊扩散 · 边缘高斯模糊，reverse 收拢', initialReverse: false },
+  { type: ThemeAnimationType.SQUARE, label: 'SQUARE', hint: '正方形扩散 · reverse 方洞收拢', initialReverse: false },
+  { type: ThemeAnimationType.DIAMOND, label: 'DIAMOND', hint: '菱形扩散 · reverse 菱形洞收拢', initialReverse: false },
+  { type: ThemeAnimationType.RECTANGLE, label: 'RECTANGLE', hint: '矩形扩散 · 贴合视口比例，reverse 矩形洞收拢', initialReverse: false },
   { type: ThemeAnimationType.HEXAGON, label: 'HEXAGON', hint: '六边形扩散 · 尖顶朝上' },
   { type: ThemeAnimationType.TRIANGLE, label: 'TRIANGLE', hint: '三角形扩散 · 顶点朝上' },
   { type: ThemeAnimationType.STAR, label: 'STAR', hint: '五角星扩散 · 顶点朝上' },
   { type: ThemeAnimationType.BLINDS, label: 'BLINDS', hint: '百叶窗 · 叶片逐条揭开，direction 控方向', initialDirection: ThemeAnimationDirection.LTR, initialSlatWidth: 72 },
   { type: ThemeAnimationType.SCAN, label: 'SCAN', hint: '扫描 · 硬边扫开 + 前缘光束，direction 控方向', initialDirection: ThemeAnimationDirection.TTB },
-  { type: ThemeAnimationType.QR_GRID, label: 'QR_GRID', hint: '方块格子 · 方块逐格生长，direction 控方位', initialDirection: ThemeAnimationDirection.LTR },
+  { type: ThemeAnimationType.QR_GRID, label: 'QR_GRID', hint: '方块格子 · direction 控方位，cellSize 控格距，dot 为圆点格（direction 静默）', initialDirection: ThemeAnimationDirection.LTR, initialCellSize: 64, initialCellShape: 'square' },
   { type: ThemeAnimationType.RIPPLE, label: 'RIPPLE', hint: '水滴涟漪 · 环带前缘向外推，waveWidth 控波长，reverse 向内收', initialWaveWidth: 18, initialReverse: false },
   { type: ThemeAnimationType.CLOCK_SWEEP, label: 'CLOCK_SWEEP', hint: '时钟扇形 · 自 12 点顺时针扫开，reverse 改逆时针', initialReverse: false },
   { type: ThemeAnimationType.FAN, label: 'FAN', hint: '扇叶旋开 · bladeCount 控扇叶数，reverse 改为合拢', initialBladeCount: 8, initialReverse: false },
-  { type: ThemeAnimationType.CURTAIN, label: 'CURTAIN', hint: '双开门 · 中线向两侧推开，reverse 改为两侧向中线合拢', initialReverse: false },
+  { type: ThemeAnimationType.CURTAIN, label: 'CURTAIN', hint: '双开门 · direction 控开合轴（ltr/rtl 水平、ttb/btt 垂直），reverse 向中线合拢', initialDirection: ThemeAnimationDirection.LTR, initialReverse: false },
 ]
 
 /** duration / easing 全局预设：选中后所有按钮的下一次切换立即生效 */
@@ -73,9 +77,21 @@ const BLADE_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
   { value: 8, label: '8' },
   { value: 12, label: '12' },
 ]
+/** QR_GRID 格距档位（px，[16, 200]）：仅 QR_GRID 卡片展示 */
+const CELL_SIZE_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
+  { value: 32, label: '32px' },
+  { value: 64, label: '64px' },
+  { value: 128, label: '128px' },
+]
+/** QR_GRID 格子形状：方块（双层 intersect）/ 圆点（单层平铺 radial，direction 静默） */
+const CELL_SHAPE_OPTIONS: ReadonlyArray<{ value: ThemeAnimationCellShape; label: string }> = [
+  { value: 'square', label: '方块' },
+  { value: 'dot', label: '圆点' },
+]
 
 /**
- * reverse 三档：仅已接通的 5 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN）。
+ * reverse 三档：仅已接通的 9 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN /
+ * SQUARE / RECTANGLE / CIRCLE_BLUR / DIAMOND）。
  * 与 direction 正交——direction 定推进轴，reverse 定从内还是从外揭开；
  * auto = 切暗正向、切亮收起，即跟随本次切换方向。
  */
@@ -109,6 +125,8 @@ function ThemeButton({
   hint,
   initialDirection,
   initialSlatWidth,
+  initialCellSize,
+  initialCellShape,
   initialWaveWidth,
   initialBladeCount,
   initialReverse,
@@ -120,6 +138,8 @@ function ThemeButton({
   hint: string
   initialDirection?: ThemeAnimationDirection
   initialSlatWidth?: number
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   initialWaveWidth?: number
   initialBladeCount?: number
   initialReverse?: boolean | 'auto'
@@ -129,6 +149,8 @@ function ThemeButton({
   const mounted = useMounted()
   const [direction, setDirection] = useState<ThemeAnimationDirection>(initialDirection ?? ThemeAnimationDirection.LTR)
   const [slatWidth, setSlatWidth] = useState(initialSlatWidth ?? 72)
+  const [cellSize, setCellSize] = useState(initialCellSize ?? 64)
+  const [cellShape, setCellShape] = useState<ThemeAnimationCellShape>(initialCellShape ?? 'square')
   const [waveWidth, setWaveWidth] = useState(initialWaveWidth ?? 18)
   const [bladeCount, setBladeCount] = useState(initialBladeCount ?? 8)
   const [reverse, setReverse] = useState<boolean | 'auto'>(initialReverse ?? false)
@@ -137,6 +159,8 @@ function ThemeButton({
     animationType,
     direction,
     slatWidth,
+    cellSize,
+    cellShape,
     waveWidth,
     bladeCount,
     reverse,
@@ -179,6 +203,31 @@ function ThemeButton({
               onClick={() => setSlatWidth(s.value)}
             >
               {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {initialCellShape !== undefined && (
+        <div className="slats" role="group" aria-label={`${label} cell`}>
+          <span>cell</span>
+          {CELL_SHAPE_OPTIONS.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              className={`chip chip-sm${cellShape === s.value ? ' active' : ''}`}
+              onClick={() => setCellShape(s.value)}
+            >
+              {s.label}
+            </button>
+          ))}
+          {CELL_SIZE_OPTIONS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              className={`chip chip-sm${cellSize === c.value ? ' active' : ''}`}
+              onClick={() => setCellSize(c.value)}
+            >
+              {c.label}
             </button>
           ))}
         </div>
@@ -262,11 +311,12 @@ export function ThemeSwitcher() {
         <b>{mounted ? (isDark ? 'dark' : 'light') : '…'}</b>）
       </p>
       <p>
-        16 个按钮各自是独立的受控 <code>useThemeAnimation</code> 实例：库不写 localStorage、不改 class，
+        15 个按钮各自是独立的受控 <code>useThemeAnimation</code> 实例：库不写 localStorage、不改 class，
         在转场回调内调用 <code>setTheme</code> 并等待 next-themes 写入 class 后截图（300ms 未同步则自动直切）。
         中心扩散与角度扫开类动画（含 RIPPLE / CLOCK_SWEEP / FAN）的起收点是按钮中心，可验证点击位置跟随；BLINDS / SCAN /
-        QR_GRID / CURTAIN 不读触发元素几何。前一组卡片下方各有独立的 direction 选择，RIPPLE 另有 waveWidth 档位、FAN
-        另有 bladeCount 档位，都只影响本卡片。
+        QR_GRID / CURTAIN 不读触发元素几何。卡片下方各有独立的 direction 选择（QR_GRID 圆点格除外——单层无推进轴，
+        direction 静默；CURTAIN 的 direction 是开合轴，只有水平 / 垂直两种形态），RIPPLE 另有 waveWidth 档位、FAN
+        另有 bladeCount 档位、QR_GRID 另有格子形状与格距档位，9 个类型各有 reverse 三档，都只影响本卡片。
       </p>
       <div className="presets" role="group" aria-label="duration 预设">
         <span>duration</span>
@@ -301,6 +351,8 @@ export function ThemeSwitcher() {
             hint={t.hint}
             initialDirection={t.initialDirection}
             initialSlatWidth={t.initialSlatWidth}
+            initialCellSize={t.initialCellSize}
+            initialCellShape={t.initialCellShape}
             initialWaveWidth={t.initialWaveWidth}
             initialBladeCount={t.initialBladeCount}
             initialReverse={t.initialReverse}

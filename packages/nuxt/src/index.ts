@@ -39,6 +39,8 @@ const module: NuxtModule = defineNuxtModule({
           'declare global {',
           "  type ThemeAnimationType = import('theme-switch-animation/vue').ThemeAnimationType",
           "  type ThemeAnimationDirection = import('theme-switch-animation/vue').ThemeAnimationDirection",
+          // ThemeAnimationCellShape 是纯类型选项（QR_GRID 的 cellShape），自动导入覆盖不到，同样补上
+          "  type ThemeAnimationCellShape = import('theme-switch-animation/vue').ThemeAnimationCellShape",
           '}',
           'export {}',
           '',

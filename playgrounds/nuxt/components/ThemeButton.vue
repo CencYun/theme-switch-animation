@@ -11,12 +11,15 @@ const props = defineProps<{
   initialDirection?: ThemeAnimationDirection
   /** 仅 BLINDS：卡片下方的叶宽按钮初始值（px） */
   initialSlatWidth?: number
+  /** 仅 QR_GRID：卡片下方的格距与格子形状按钮初始值 */
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   /** 仅 RIPPLE：卡片下方的波长按钮初始值（px） */
   initialWaveWidth?: number
   /** 仅 FAN：卡片下方的扇叶数按钮初始值 */
   initialBladeCount?: number
   /**
-   * 仅 CIRCLE（reverse 已接通的类型）：卡片下方反向三档按钮的初始值。
+   * 仅 reverse 已接通的 9 个类型：卡片下方反向三档按钮的初始值。
    * 注意合法值含 `false`，模板里判存在必须用 `!== undefined`，不能写 v-if="initialReverse"。
    */
   initialReverse?: boolean | 'auto'
@@ -35,6 +38,13 @@ const WAVE_OPTIONS = [10, 18, 34] as const
 
 const BLADE_OPTIONS = [6, 8, 12] as const
 
+const CELL_SIZE_OPTIONS = [32, 64, 128] as const
+
+const CELL_SHAPE_OPTIONS = [
+  { value: 'square', label: '方块' },
+  { value: 'dot', label: '圆点' },
+] as const
+
 /** reverse 三档：off 恒正向 / on 恒反向 / auto 跟随切换方向（切暗正向、切亮收起） */
 const REVERSE_OPTIONS = [
   { value: false, label: 'off' },
@@ -45,6 +55,8 @@ const REVERSE_OPTIONS = [
 /** 方向：每张卡片独立持有，互不影响 */
 const direction = ref<ThemeAnimationDirection>(props.initialDirection ?? ThemeAnimationDirection.LTR)
 const slatWidth = ref(props.initialSlatWidth ?? 72)
+const cellSize = ref(props.initialCellSize ?? 64)
+const cellShape = ref<ThemeAnimationCellShape>(props.initialCellShape ?? 'square')
 const waveWidth = ref(props.initialWaveWidth ?? 18)
 const bladeCount = ref(props.initialBladeCount ?? 8)
 const reverse = ref<boolean | 'auto'>(props.initialReverse ?? false)
@@ -62,6 +74,8 @@ const options = reactive({
   easing: props.easing,
   direction: direction.value,
   slatWidth: slatWidth.value,
+  cellSize: cellSize.value,
+  cellShape: cellShape.value,
   waveWidth: waveWidth.value,
   bladeCount: bladeCount.value,
   reverse: reverse.value,
@@ -78,6 +92,8 @@ watchEffect(() => {
   options.easing = props.easing
   options.direction = direction.value
   options.slatWidth = slatWidth.value
+  options.cellSize = cellSize.value
+  options.cellShape = cellShape.value
   options.waveWidth = waveWidth.value
   options.bladeCount = bladeCount.value
   options.reverse = reverse.value
@@ -120,6 +136,27 @@ const setTrigger = (el: unknown) => {
         @click="slatWidth = s"
       >
         {{ s }}px
+      </button>
+    </div>
+    <div v-if="initialCellShape !== undefined" class="slats" :aria-label="`${label} cell`" role="group">
+      <span>cell</span>
+      <button
+        v-for="s in CELL_SHAPE_OPTIONS"
+        :key="s.value"
+        type="button"
+        :class="['chip', 'chip-sm', { active: cellShape === s.value }]"
+        @click="cellShape = s.value"
+      >
+        {{ s.label }}
+      </button>
+      <button
+        v-for="c in CELL_SIZE_OPTIONS"
+        :key="c"
+        type="button"
+        :class="['chip', 'chip-sm', { active: cellSize === c }]"
+        @click="cellSize = c"
+      >
+        {{ c }}px
       </button>
     </div>
     <div v-if="initialWaveWidth" class="slats" :aria-label="`${label} waveWidth`" role="group">

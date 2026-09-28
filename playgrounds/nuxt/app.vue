@@ -11,28 +11,31 @@ const ANIMATION_TYPES: Array<{
   initialDirection?: ThemeAnimationDirection
   /** 仅 BLINDS：卡片下方渲染叶宽选择按钮 */
   initialSlatWidth?: number
+  /** 仅 QR_GRID：卡片下方渲染格距与格子形状选择按钮 */
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   /** 仅 RIPPLE：卡片下方渲染波长选择按钮 */
   initialWaveWidth?: number
   /** 仅 FAN：卡片下方渲染扇叶数选择按钮 */
   initialBladeCount?: number
-  /** 仅 reverse 已接通的 5 个类型：卡片下方渲染反向三档按钮 */
+  /** 仅 reverse 已接通的 9 个类型：卡片下方渲染反向三档按钮 */
   initialReverse?: boolean | 'auto'
 }> = [
   { type: ThemeAnimationType.CIRCLE, label: 'CIRCLE', hint: '圆形扩散 · 圆心 = 点击位置', initialReverse: false },
-  { type: ThemeAnimationType.CIRCLE_BLUR, label: 'CIRCLE_BLUR', hint: '圆形模糊扩散 · 边缘高斯模糊' },
-  { type: ThemeAnimationType.SQUARE, label: 'SQUARE', hint: '正方形扩散' },
-  { type: ThemeAnimationType.DIAMOND, label: 'DIAMOND', hint: '菱形扩散' },
-  { type: ThemeAnimationType.RECTANGLE, label: 'RECTANGLE', hint: '矩形扩散 · 贴合视口比例' },
+  { type: ThemeAnimationType.CIRCLE_BLUR, label: 'CIRCLE_BLUR', hint: '圆形模糊扩散 · 边缘高斯模糊，reverse 收拢', initialReverse: false },
+  { type: ThemeAnimationType.SQUARE, label: 'SQUARE', hint: '正方形扩散 · reverse 方洞收拢', initialReverse: false },
+  { type: ThemeAnimationType.DIAMOND, label: 'DIAMOND', hint: '菱形扩散 · reverse 菱形洞收拢', initialReverse: false },
+  { type: ThemeAnimationType.RECTANGLE, label: 'RECTANGLE', hint: '矩形扩散 · 贴合视口比例，reverse 矩形洞收拢', initialReverse: false },
   { type: ThemeAnimationType.HEXAGON, label: 'HEXAGON', hint: '六边形扩散 · 尖顶朝上' },
   { type: ThemeAnimationType.TRIANGLE, label: 'TRIANGLE', hint: '三角形扩散 · 顶点朝上' },
   { type: ThemeAnimationType.STAR, label: 'STAR', hint: '五角星扩散 · 顶点朝上' },
   { type: ThemeAnimationType.BLINDS, label: 'BLINDS', hint: '百叶窗 · 叶片逐条揭开，direction 控方向', initialDirection: ThemeAnimationDirection.LTR, initialSlatWidth: 72 },
   { type: ThemeAnimationType.SCAN, label: 'SCAN', hint: '扫描 · 硬边扫开 + 前缘光束，direction 控方向', initialDirection: ThemeAnimationDirection.TTB },
-  { type: ThemeAnimationType.QR_GRID, label: 'QR_GRID', hint: '方块格子 · 方块逐格生长，direction 控方位', initialDirection: ThemeAnimationDirection.LTR },
+  { type: ThemeAnimationType.QR_GRID, label: 'QR_GRID', hint: '方块格子 · direction 控方位，cellSize 控格距，dot 为圆点格（direction 静默）', initialDirection: ThemeAnimationDirection.LTR, initialCellSize: 64, initialCellShape: 'square' },
   { type: ThemeAnimationType.RIPPLE, label: 'RIPPLE', hint: '水滴涟漪 · 环带前缘向外推，waveWidth 控波长，reverse 向内收', initialWaveWidth: 18, initialReverse: false },
   { type: ThemeAnimationType.CLOCK_SWEEP, label: 'CLOCK_SWEEP', hint: '时钟扇形 · 自 12 点顺时针扫开，reverse 改逆时针', initialReverse: false },
   { type: ThemeAnimationType.FAN, label: 'FAN', hint: '扇叶旋开 · bladeCount 控扇叶数，reverse 改为合拢', initialBladeCount: 8, initialReverse: false },
-  { type: ThemeAnimationType.CURTAIN, label: 'CURTAIN', hint: '双开门 · 中线向两侧推开，reverse 改为两侧向中线合拢', initialReverse: false },
+  { type: ThemeAnimationType.CURTAIN, label: 'CURTAIN', hint: '双开门 · direction 控开合轴（ltr/rtl 水平、ttb/btt 垂直），reverse 向中线合拢', initialDirection: ThemeAnimationDirection.LTR, initialReverse: false },
 ]
 
 /** duration / easing 全局预设：选中后所有按钮的下一次切换立即生效 */
@@ -71,10 +74,10 @@ onUnmounted(() => stopObserving?.())
       <b>{{ htmlIsDark ? darkClassName : 'light' }}</b>）
     </p>
     <p>
-      16 个按钮各持有一个受控 <code>useThemeAnimation</code> 实例（自动导入，无 import）；
+      15 个按钮各持有一个受控 <code>useThemeAnimation</code> 实例（自动导入，无 import）；
       库在转场回调内调用 <code>colorMode.preference = …</code> 并等待 color-mode 写入 class 后截图，
       300ms 未同步到位时自动跳过动画直切（不播放“旧→旧”空转）。
-      每个按钮使用自己声明的动画类型（中心扩散与角度扫开类动画含 RIPPLE / CLOCK_SWEEP / FAN 的起收点是按钮中心，可验证点击位置跟随；BLINDS / SCAN / QR_GRID / CURTAIN 不读触发元素几何）。前一组卡片下方各有独立的 direction 选择，RIPPLE 另有 waveWidth 档位、FAN 另有 bladeCount 档位，都只影响本卡片。
+      每个按钮使用自己声明的动画类型（中心扩散与角度扫开类动画含 RIPPLE / CLOCK_SWEEP / FAN 的起收点是按钮中心，可验证点击位置跟随；BLINDS / SCAN / QR_GRID / CURTAIN 不读触发元素几何）。卡片下方各有独立的 direction 选择（QR_GRID 圆点格除外——单层无推进轴，direction 静默；CURTAIN 的 direction 是开合轴，只有水平 / 垂直两种形态），RIPPLE 另有 waveWidth 档位、FAN 另有 bladeCount 档位、QR_GRID 另有格子形状与格距档位，9 个类型各有 reverse 三档，都只影响本卡片。
     </p>
     <div class="presets" role="group" aria-label="duration 预设">
       <span>duration</span>
@@ -107,6 +110,8 @@ onUnmounted(() => stopObserving?.())
         :hint="t.hint"
         :initial-direction="t.initialDirection"
         :initial-slat-width="t.initialSlatWidth"
+        :initial-cell-size="t.initialCellSize"
+        :initial-cell-shape="t.initialCellShape"
         :initial-wave-width="t.initialWaveWidth"
         :initial-blade-count="t.initialBladeCount"
         :initial-reverse="t.initialReverse"

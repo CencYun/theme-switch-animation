@@ -16,7 +16,7 @@
 ## ✨ 特性
 
 - 🔀 **跨框架**：React 18+、Vue 3+、Next.js（App Router）、Nuxt 3+
-- 🎨 **动画类型分族**：圆形扩散（含边缘模糊变体）、几何形状扩散、条带与格子（由 `direction` 控制四方向）、中线对开、环带前缘（由 `waveWidth` 控制波长）、角度扫开（由 `bladeCount` 控制扇叶数）；其中 5 个类型支持 `reverse` 改为反向揭开。完整清单与逐个的观感说明见下方「🎬 动画类型」表
+- 🎨 **动画类型分族**：圆形扩散（含边缘模糊变体）、几何形状扩散、条带与格子（由 `direction` 控制四方向）、中线对开（`direction` 控开合轴）、环带前缘（由 `waveWidth` 控制波长）、角度扫开（由 `bladeCount` 控制扇叶数）；其中 9 个类型支持 `reverse` 改为反向揭开。完整清单与逐个的观感说明见下方「🎬 动画类型」表
 - 🔌 **受控模式**：不独占主题状态管理，`next-themes`、`@nuxtjs/color-mode` 用户可直接接入
 - 🔄 **非受控多实例同步**：同页多个实例的 `isDark` 以 `<html>` 暗色类名为事实源镜像，其它标签页经 storage 事件同步
 - 🛟 **自动降级**：不支持 View Transitions 或 `prefers-reduced-motion: reduce` 时自动降级为直接切换（状态永远正确）
@@ -108,15 +108,15 @@ export default defineNuxtConfig({
 | 类型 | 观感 | 起收点 | 消费的选项 |
 | --- | --- | --- | --- |
 | `CIRCLE` | 圆形扩散；`reverse` 改为"新主题从四周显出、向触发点收拢"（0.3.x 的 `CIRCLE_REVERT` 收起形态） | 触发元素中心 | `reverse` |
-| `CIRCLE_BLUR` | 边缘高斯模糊的圆形扩散 | 触发元素中心 | `blurAmount` |
-| `SQUARE` / `DIAMOND` / `RECTANGLE` / `HEXAGON` / `TRIANGLE` / `STAR` | 多边形从触发点扩散（朝向见文档站画廊） | 触发元素中心 | — |
+| `CIRCLE_BLUR` | 边缘高斯模糊的圆形扩散；`reverse` 为模糊边界的圆洞收拢 | 触发元素中心 | `blurAmount` / `reverse` |
+| `SQUARE` / `DIAMOND` / `RECTANGLE` / `HEXAGON` / `TRIANGLE` / `STAR` | 多边形从触发点扩散（朝向见文档站画廊）；`SQUARE` / `DIAMOND` / `RECTANGLE` 的 `reverse` 为对应形状的洞从四周收拢 | 触发元素中心 | `reverse`（仅前三者） |
 | `BLINDS` | 百叶窗：叶片逐条揭开 | 无触发点（全屏按叶宽平铺） | `direction` / `slatWidth` |
 | `SCAN` | 硬边扫开 + 前缘半透明光束 | 无触发点（沿推进轴） | `direction` |
-| `QR_GRID` | 方块格子逐格生长、末帧融为整屏 | 无触发点（按 `direction` 锚定方位） | `direction` |
+| `QR_GRID` | 方块格子逐格生长、末帧融为整屏；`cellShape: 'dot'` 切换为圆点格（单层平铺，免 `@supports`），`cellSize` 控格距。**圆点格的 `direction` 静默**（单层无推进轴，四向观感一致） | 无触发点（按 `direction` 锚定方位） | `direction` / `cellSize` / `cellShape` |
 | `RIPPLE` | 水滴涟漪：实心水面外推，前缘是主波峰 + 两圈衰减余波的环带；`reverse` 让水面从四周向内收拢 | 触发元素中心（波源） | `waveWidth` / `reverse` |
 | `CLOCK_SWEEP` | 时钟扇形：扇形自 12 点顺时针扫开，前缘带 12° 软尾；`reverse` 即**逆时针**扫开 | 触发元素中心（轴心） | `reverse` |
 | `FAN` | 扇叶旋开：`bladeCount` 片楔形扇叶同时从轴心旋开，末帧拼成整屏；`reverse` 改为合拢 | 触发元素中心（轴心） | `bladeCount` / `reverse` |
-| `CURTAIN` | 双开门：新主题自屏幕中线向两侧对称推开，起始帧中缝先透一道光；`reverse` 改为两扇幕布从两侧向中线合拢 | 无触发点（全屏按中线对称） | `reverse` |
+| `CURTAIN` | 双开门：新主题自屏幕中线对称推开，起始帧中缝先透一道光；`reverse` 改为两扇幕布向中线合拢。**`direction` 是开合轴而非四向**：`ltr`/`rtl` 水平（观感一致）、`ttb`/`btt` 垂直，只有两种视觉形态 | 无触发点（全屏按开合轴对称） | `direction` / `reverse` |
 
 `BLINDS` / `SCAN` / `QR_GRID` / `CURTAIN` 是属性驱动蒙版（`@property --theme-switch-reveal` + 静止蒙版盒子），不读触发元素几何——`ref` 只用于点击与状态。`RIPPLE` / `CLOCK_SWEEP` / `FAN` 用同一机制但把轴心写进渐变串，因此消费 `ref` 几何；角度族另用 `--theme-switch-sweep`（`@property` 的 syntax 一经注册不可改，`<angle>` 不能与 `<length>` 同名）。`QR_GRID` 的"列 ∩ 行"双层蒙版交集经 `@supports (mask-composite: intersect)` 门控，不支持的引擎自动降级为推进轴单层条带（观感同百叶窗），状态始终正确。
 
@@ -130,11 +130,13 @@ export default defineNuxtConfig({
 | `duration` | `number` | 动画时长 ms，默认 750 |
 | `easing` | `string` | 任意合法 CSS timing-function，默认 `ease-in-out` |
 | `blurAmount` | `number` | 模糊蒙版强度系数，默认 2。仅 `CIRCLE_BLUR` 生效 |
-| `direction` | `'ltr' \| 'rtl' \| 'ttb' \| 'btt'` | 扫描方向，默认 `ltr`。仅 `BLINDS` / `SCAN` / `QR_GRID` 生效（可用 `ThemeAnimationDirection` 常量），非法值静默回落默认 |
+| `direction` | `'ltr' \| 'rtl' \| 'ttb' \| 'btt'` | 扫描方向，默认 `ltr`。`BLINDS` / `SCAN` / `QR_GRID` 控扫开方向与锚定；`CURTAIN` 控开合轴（`ltr`/`rtl` 水平、`ttb`/`btt` 垂直——只有两种视觉形态）（可用 `ThemeAnimationDirection` 常量），其余类型忽略，非法值静默回落默认 |
 | `slatWidth` | `number` | 百叶窗叶片宽度 px，范围 `[16, 200]`，默认 72。仅 `BLINDS` 生效，越界静默回落默认 |
+| `cellSize` | `number` | QR_GRID 格距 px（每格方块/圆点的边长与平铺周期），范围 `[16, 200]`，默认 64。仅 `QR_GRID` 生效，越界静默回落默认 |
+| `cellShape` | `'square' \| 'dot'` | QR_GRID 格子形状，默认 `'square'`。`'dot'` 为单层平铺圆点格（免 `@supports`，圆点直径终值 ≥ 格距 × √2 保证末帧无缝）；**圆点格的 `direction` 静默**。非法值静默回落默认 |
 | `waveWidth` | `number` | 涟漪波长 px（相邻两圈波峰间距），范围 `[8, 60]`，默认 18。仅 `RIPPLE` 生效，越界静默回落默认 |
 | `bladeCount` | `number` | 扇叶数，范围 `[4, 16]` 的**整数**，默认 8。仅 `FAN` 生效，非整数或越界静默回落默认（非整数会让 `360 / bladeCount` 不整除，末帧留一条永不闭合的缝） |
-| `reverse` | `boolean \| 'auto'` | 反向揭开，默认 `false`。`true` 恒反向；`'auto'` 切暗正向、切亮收起（跟随本次切换方向）。**与 `direction` 正交**：`direction` 决定推进轴，`reverse` 决定从内还是从外揭开。已接入 `CIRCLE` / `FAN` / `RIPPLE` / `CLOCK_SWEEP` / `CURTAIN` 五个类型，其余静默忽略——形状族反向必须动 `mask-size`，会重新引入已修完的像素对齐抖动，做不到无副作用（见 `docs/animation-roadmap.md` §4）。非法值静默回落 `false` |
+| `reverse` | `boolean \| 'auto'` | 反向揭开，默认 `false`。`true` 恒反向；`'auto'` 切暗正向、切亮收起（跟随本次切换方向）。**与 `direction` 正交**：`direction` 决定推进轴，`reverse` 决定从内还是从外揭开。已接入 `CIRCLE` / `FAN` / `RIPPLE` / `CLOCK_SWEEP` / `CURTAIN` / `SQUARE` / `RECTANGLE` / `CIRCLE_BLUR` / `DIAMOND` 九个类型，其余静默忽略——形状族其余 3 个（HEXAGON / TRIANGLE / STAR）的反向必须动 `mask-size`，会重新引入已修完的像素对齐抖动，做不到无副作用（见 `docs/animation-roadmap.md` §4）。非法值静默回落 `false` |
 | `darkClassName` | `string` | 暗色类名，默认 `dark`（与 next-themes / color-mode 默认一致） |
 | `isDark` + `onChange` | — | 同时提供 → 受控模式；都缺省 → 非受控（localStorage key 为 `THEME_STORAGE_KEY` 常量 `theme-switch-animation`，`observeThemeClass` 可带自定义 key）；只提供其一 → 契约不完整（开发环境 console.warn，按非受控工作） |
 
@@ -173,7 +175,7 @@ useThemeAnimation({ animationType: ThemeAnimationType.CIRCLE, reverse: 'auto' })
 
 `reverse: 'auto'` 与原 `CIRCLE_REVERT` 同形：切暗是暗色圆从触发点扩散、切亮是暗色圆收拢进触发点，注入的 CSS 只在 keyframes 名上不同（`theme-switch-circle-revert` → `theme-switch-circle`）。想无论切哪个方向都收拢，写 `reverse: true`——这是 0.3.x 没有的形态。
 
-`getCircleRevertHoleGeometry`（洞式收起的几何计算）保留原名导出，现在由 `CIRCLE + reverse` 消费。`reverse` 对未接入的 10 个类型静默无效，除 `CIRCLE` 外的类型行为与 0.3.x 完全一致。
+`getCircleRevertHoleGeometry`（洞式收起的几何计算）保留原名导出，现在由 `CIRCLE + reverse` 消费。`reverse` 对未接入的 6 个类型静默无效，除 `CIRCLE` 外的类型行为与 0.3.x 完全一致。
 
 ## ⚠️ 从 0.1.x 升级（0.2.0 破坏性变更）
 
