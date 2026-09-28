@@ -1,6 +1,7 @@
 import {
   getBlurCircleReverseRevealSpec,
   getCircleRevertHoleGeometry,
+  getDiamondReverseRevealSpec,
   getMaskGeometry,
   getPanelReverseMaskSpec,
   getQrGridDotRevealSpec,
@@ -172,8 +173,8 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
   // toggle 后必为取反。
   const toDark = nextIsDark ?? !hasThemeClass(doc, resolved.darkClassName)
   // 本次转场是否走反向形态。只有已接入的类型才算数：CIRCLE / FAN / RIPPLE / CLOCK_SWEEP /
-  // CURTAIN / SQUARE / RECTANGLE / CIRCLE_BLUR。其余传 reverse 静默忽略——形状族其余 5 个
-  // （DIAMOND / HEXAGON / TRIANGLE / STAR）要走反向只能动 mask-size（附录四/五的抖动病根），
+  // CURTAIN / SQUARE / RECTANGLE / CIRCLE_BLUR / DIAMOND。其余传 reverse 静默忽略——形状族其余 3 个
+  // （HEXAGON / TRIANGLE / STAR）要走反向只能动 mask-size（附录四/五的抖动病根），
   // 做不到无副作用；BLINDS / SCAN / QR_GRID 由 direction 占那根轴（见 roadmap §4）。
   const reverseCapable = resolved.animationType === ThemeAnimationType.CIRCLE
     || resolved.animationType === ThemeAnimationType.FAN
@@ -182,6 +183,7 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
     || resolved.animationType === ThemeAnimationType.CURTAIN
     || isPanelReverseAnimationType(resolved.animationType)
     || isBlurAnimationType(resolved.animationType)
+    || resolved.animationType === ThemeAnimationType.DIAMOND
   const collapse = reverseCapable
     && (resolved.reverse === true || (resolved.reverse === 'auto' && !toDark))
   // CIRCLE 的反向用洞式蒙版：挂新截图层、掏一个从全屏收缩到 0 的洞（层序与 CIRCLE 一致、
@@ -210,7 +212,9 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
             ? getPanelReverseMaskSpec(resolved.animationType, center, viewport)
             : collapse && isBlurAnimationType(resolved.animationType)
               ? getBlurCircleReverseRevealSpec(center, viewport, resolved.blurAmount)
-              : undefined)
+              : collapse && resolved.animationType === ThemeAnimationType.DIAMOND
+                ? getDiamondReverseRevealSpec(center, viewport)
+                : undefined)
   // QR_GRID：新层"列 ∩ 行"方块格子双层蒙版，同样无触发点；圆点格已在上面走 reveal。
   const qrGrid = isQrGridAnimationType(resolved.animationType) && !qrGridDot
     ? getQrGridMaskSpec(resolved.direction, resolved.cellSize)

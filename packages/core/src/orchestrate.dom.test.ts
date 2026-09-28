@@ -412,7 +412,7 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
     expect(forward).not.toContain('@property --theme-switch-reveal')
   })
 
-  it('reverse 未接入的类型传 true 也静默无效：QR_GRID / BLINDS / SCAN / 其余形状族输出不变', () => {
+  it('reverse 未接入的类型传 true 也静默无效：QR_GRID / BLINDS / SCAN / 形状族其余 3 个输出不变', () => {
     installFakeViewTransition()
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
@@ -420,7 +420,7 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
 
     for (const animationType of [
       ThemeAnimationType.QR_GRID, ThemeAnimationType.BLINDS, ThemeAnimationType.SCAN,
-      ThemeAnimationType.DIAMOND, ThemeAnimationType.HEXAGON, ThemeAnimationType.TRIANGLE,
+      ThemeAnimationType.HEXAGON, ThemeAnimationType.TRIANGLE,
       ThemeAnimationType.STAR,
     ]) {
       runThemeTransition({ domUpdate: () => {}, trigger, options: { animationType } })
@@ -430,6 +430,41 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
       expect(styleNode()!.textContent!).toBe(baseline)
       removeAnimationStyle(document)
     }
+  })
+
+  it('reverse 已接入 DIAMOND：两条对角透明芯条带 add 成菱形洞，from = 1.05×v0、to = 0', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    const trigger = { getBoundingClientRect: () => ({ left: 100, top: 50, width: 40, height: 20 }) }
+
+    runThemeTransition({
+      domUpdate: () => {},
+      trigger,
+      options: { animationType: ThemeAnimationType.DIAMOND, reverse: true },
+    })
+    const reversed = styleNode()!.textContent!
+    removeAnimationStyle(document)
+
+    // 中心 (120, 60)：v0 = (680+540)/√2 = 862.67 → from = 905.8；L/2 = 494.97
+    // S_A = 494.97 + (−280−240)×√2/2 = 127.27；S_B = 494.97 + (−280+240)×√2/2 = 466.69
+    expect(reversed).toContain('@property --theme-switch-reveal')
+    expect(reversed).toContain('linear-gradient(135deg, #000 0 calc(127.27px - var(--theme-switch-reveal) - 0.5px)')
+    expect(reversed).toContain('linear-gradient(45deg, #000 0 calc(466.69px - var(--theme-switch-reveal) - 0.5px)')
+    expect(reversed).toContain('mask-size: 100% 100%, 100% 100%;')
+    expect(reversed).toContain('mask-repeat: no-repeat, no-repeat;')
+    expect(reversed).toContain('--theme-switch-reveal: 905.8px;')
+    expect(reversed).toContain('--theme-switch-reveal: 0px;')
+    // add 是默认合成：免 @supports 门控、无 mask-composite 声明
+    expect(reversed).not.toContain('@supports')
+    expect(reversed).not.toContain('mask-composite')
+
+    // 正向未被连带改动：仍是 SVG 菱形蒙版 + mask-size 驱动
+    runThemeTransition({ domUpdate: () => {}, trigger, options: { animationType: ThemeAnimationType.DIAMOND } })
+    const forward = styleNode()!.textContent!
+    expect(forward).toContain('@keyframes theme-switch-diamond')
+    expect(forward).toContain('will-change: mask-size, mask-position')
+    expect(forward).not.toContain('@property --theme-switch-reveal')
   })
 
   it('BLINDS：注入"注册属性 + 叶片平铺蒙版"CSS，direction / slatWidth 选项生效', () => {

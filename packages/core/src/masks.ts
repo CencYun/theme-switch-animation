@@ -582,6 +582,56 @@ export function getPanelReverseMaskSpec(
     : getSquareReverseRevealSpec(center, viewport)
 }
 
+/**
+ * DIAMOND 反向（P3-10）：菱形洞从视口四边向触发点收拢。菱形 |dx| + |dy| < v 等价于两条
+ * 对角条带的**交集**：|(dx + dy)| < v ∩ |(dx − dy)| < v（max(|dx+dy|, |dx−dy|) = |dx|+|dy|）。
+ * 每条对角条带 = 「透明芯 + 两端实心」的洞式条带，默认 `add` 合成下透明区 = 两芯的交集 =
+ * 菱形洞——**不是 intersect**（那是两芯的并集 = 八角星，P3-9 同款构造病），也**不需要
+ * `@supports`**（add 是默认合成；roadmap 原猜的 intersect + 门控被预检证伪后修正）。
+ *
+ * 几何常量（烘进 stop 的 px）：线性渐变线过视口中心、长 L = (宽 + 高) × √2/2（45°/135° 同长），
+ * 点 p 的渐变位置 = (p − 视口中心)·u + L/2（u = 渐变方向单位向量，135° 指向右下、45° 指向右上）。
+ * 条带中心钉在触发点的投影：S = L/2 + (触发点 − 视口中心)·u。
+ * v0 = 四角 (|dx| + |dy|)/√2 的最大值——菱形洞盖住视口的充要条件
+ * （max(|dx+dy|, |dx−dy|)/√2 = (|dx|+|dy|)/√2，轴对齐情形的恒等式）。
+ * from = 1.05 × v0（同 SQUARE_COVERAGE_MARGIN 口径，防首帧角落漏光）、to = 0。
+ * ±0.5px 斜坡是洞边抗锯齿（同 CIRCLE reverse）；v→0 时两带各留一条亚像素 dip 线、
+ * 仅在触发点交叉处留 ~1px 半透明点——与 CIRCLE reverse 中心像素同类容忍
+ * （6400 点网格探针不可见，末帧 6400/6400 实测）。
+ */
+export const DIAMOND_REVERSE_COVERAGE_FACTOR = 1.05
+
+export function getDiamondReverseRevealSpec(center: Point, viewport: Size): RevealMaskSpec {
+  const r2 = Math.SQRT1_2
+  const v0 =
+    Math.max(
+      Math.abs(center.x) + Math.abs(center.y),
+      Math.abs(viewport.width - center.x) + Math.abs(center.y),
+      Math.abs(center.x) + Math.abs(viewport.height - center.y),
+      Math.abs(viewport.width - center.x) + Math.abs(viewport.height - center.y),
+    ) * r2
+  const from = roundTo(v0 * DIAMOND_REVERSE_COVERAGE_FACTOR, 2)
+  const lineHalf = roundTo(((viewport.width + viewport.height) * r2) / 2, 2)
+  const v = `var(${REVEAL_VAR})`
+  const strip = (angle: number): string => {
+    const ux = Math.sin((angle * Math.PI) / 180)
+    const uy = -Math.cos((angle * Math.PI) / 180)
+    const s = roundTo(lineHalf + (center.x - viewport.width / 2) * ux + (center.y - viewport.height / 2) * uy, 2)
+    return (
+      `linear-gradient(${angle}deg, #000 0 calc(${s}px - ${v} - 0.5px),` +
+      ` transparent calc(${s}px - ${v} + 0.5px) calc(${s}px + ${v} - 0.5px),` +
+      ` #000 calc(${s}px + ${v} + 0.5px))`
+    )
+  }
+  return {
+    from,
+    to: 0,
+    maskImage: `${strip(135)}, ${strip(45)}`,
+    maskSize: '100% 100%, 100% 100%',
+    maskRepeat: 'no-repeat, no-repeat',
+  }
+}
+
 export function isRevealAnimationType(type: ThemeAnimationType): boolean {
   return type === ThemeAnimationType.BLINDS || type === ThemeAnimationType.SCAN
     || type === ThemeAnimationType.CURTAIN

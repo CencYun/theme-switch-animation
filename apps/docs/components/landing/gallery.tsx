@@ -211,7 +211,7 @@ const ANIMATION_TYPES: Array<{
   initialWaveWidth?: number
   /** 仅 FAN：卡片内渲染扇叶数选择器（初始扇叶数） */
   initialBladeCount?: number
-  /** 仅 reverse 已接通的 8 个类型：卡片内渲染反向三档选择器（初始值） */
+  /** 仅 reverse 已接通的 9 个类型：卡片内渲染反向三档选择器（初始值） */
   initialReverse?: boolean | 'auto'
   Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
   /** 渐变图标砖：亮 / 暗两套底色 + 图标色（写全类名，避免动态拼接被 Tailwind 摇掉） */
@@ -245,6 +245,7 @@ const ANIMATION_TYPES: Array<{
     type: ThemeAnimationType.DIAMOND,
     label: 'DIAMOND',
     hint: '菱形扩散',
+    initialReverse: false,
     Icon: IcoShape('12,3.5 20.5,12 12,20.5 3.5,12'),
     tile: 'from-teal-100 to-teal-200 text-teal-600 dark:from-teal-500/15 dark:to-teal-500/5 dark:text-teal-400',
   },
@@ -366,8 +367,8 @@ const DIRECTION_OPTIONS: ReadonlyArray<{
 ]
 
 /**
- * reverse 三档：仅已接通的 8 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN /
- * SQUARE / RECTANGLE / CIRCLE_BLUR）。
+ * reverse 三档：仅已接通的 9 个类型展示（CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN /
+ * SQUARE / RECTANGLE / CIRCLE_BLUR / DIAMOND）。
  * 与 Direction 正交——Direction 定推进轴，Reverse 定从内还是从外揭开；
  * `auto` 是"切暗正向、切亮收起"，即跟随本次切换方向。
  */

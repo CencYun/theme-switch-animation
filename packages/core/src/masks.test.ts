@@ -8,6 +8,7 @@ import {
   CLOCK_SWEEP_TAIL_DEG,
   CURTAIN_FEATHER_PX,
   DIAMOND_COVERAGE_FACTOR,
+  DIAMOND_REVERSE_COVERAGE_FACTOR,
   FULL_CIRCLE_DEG,
   HEXAGON_COVERAGE_FACTOR,
   RECTANGLE_COVERAGE_MARGIN,
@@ -36,6 +37,7 @@ import {
   getCurtainRevealSpec,
   getCurtainReverseRevealSpec,
   getDiamondMaskGeometry,
+  getDiamondReverseRevealSpec,
   getHexagonMaskGeometry,
   getFanBladeStepDeg,
   getFanRevealSpec,
@@ -1078,6 +1080,74 @@ describe('CIRCLE_BLUR 反向（径向洞 + 宽羽化）', () => {
     expect(getBlurCircleReverseRevealSpec(center, viewport, 3).from).toBeGreaterThan(
       getBlurCircleReverseRevealSpec(center, viewport, 2).from,
     )
+  })
+})
+
+describe('DIAMOND 反向（对角洞式条带 add）', () => {
+  const center = { x: 400, y: 300 }
+  const v = `var(${REVEAL_VAR})`
+  /** 与 masks.ts 的条带串同构（S 烘进 px，±0.5px 抗锯齿斜坡） */
+  const strip = (angle: number, s: number): string =>
+    `linear-gradient(${angle}deg, #000 0 calc(${s}px - ${v} - 0.5px),` +
+    ` transparent calc(${s}px - ${v} + 0.5px) calc(${s}px + ${v} - 0.5px),` +
+    ` #000 calc(${s}px + ${v} + 0.5px))`
+
+  it('串结构：两条对角透明芯条带（135deg/45deg），默认 add 合成下透明区 = 两芯交集 = 菱形洞', () => {
+    const spec = getDiamondReverseRevealSpec(center, viewport)
+    expect(spec.maskImage).toBe(`${strip(135, 494.97)}, ${strip(45, 494.97)}`)
+    expect(spec.maskSize).toBe('100% 100%, 100% 100%')
+    expect(spec.maskRepeat).toBe('no-repeat, no-repeat')
+    // add 是默认合成：不需要 @supports 门控（roadmap 原猜的 intersect + 门控被预检证伪）
+    expect(spec.maskImage).not.toContain('intersect')
+    expect(spec.maskImage.match(/linear-gradient\(/g)).toHaveLength(2)
+  })
+
+  it('几何常量烘进 px：S = L/2 + (触发点 − 视口中心)·u（L = (宽+高)×√2/2，135°/45° 同长）', () => {
+    // 中心触发：S = L/2 = 1400×√2/4 = 494.97（两带同值）
+    const spec = getDiamondReverseRevealSpec(center, viewport)
+    expect(spec.maskImage).toContain('calc(494.97px - ')
+    // 偏心 (100,200)：S_A = 494.97 + (−300−100)×√2/2 = 212.13、S_B = 494.97 + (−300+100)×√2/2 = 353.55
+    const off = getDiamondReverseRevealSpec({ x: 100, y: 200 }, viewport)
+    expect(off.maskImage).toContain('calc(212.13px - ')
+    expect(off.maskImage).toContain('calc(353.55px - ')
+  })
+
+  it('from = 1.05 × v0（四角 (|dx|+|dy|)/√2 最大值）、to = 0：不照抄正向 √2×1.05 外接圆余量', () => {
+    expect(DIAMOND_REVERSE_COVERAGE_FACTOR).toBe(1.05)
+    const spec = getDiamondReverseRevealSpec(center, viewport)
+    expect(spec.from).toBe(519.72)
+    expect(spec.to).toBe(0)
+    // 角落触发 (0,0)：v0 = 1400×√2/2 = 989.95 → from = 1039.45
+    expect(getDiamondReverseRevealSpec({ x: 0, y: 0 }, viewport).from).toBe(1039.45)
+    // 正向的 DIAMOND_COVERAGE_FACTOR（√2 × 1.05）是外接圆边长余量，照抄只会空转
+    expect(spec.from).toBeLessThan(494.97 * DIAMOND_COVERAGE_FACTOR)
+  })
+
+  it('首帧全隐不等式：四角都在透明芯内（菱形洞盖住视口的充要条件 (|dx|+|dy|)/√2 < from − 0.5）', () => {
+    for (const c of [
+      { x: 400, y: 300 },
+      { x: 100, y: 200 },
+      { x: 0, y: 0 },
+      { x: 800, y: 600 },
+    ]) {
+      const spec = getDiamondReverseRevealSpec(c, viewport)
+      for (const [x, y] of [
+        [0, 0],
+        [800, 0],
+        [0, 600],
+        [800, 600],
+      ]) {
+        const reach = ((Math.abs(x - c.x) + Math.abs(y - c.y)) * Math.SQRT1_2)
+        expect(reach).toBeLessThan(spec.from - 0.5)
+      }
+    }
+  })
+
+  it('末帧全覆盖：v=0 时两带各留一条亚像素 dip 线、仅触发点交叉处 ~1px（与 CIRCLE reverse 同类容忍）', () => {
+    const spec = getDiamondReverseRevealSpec(center, viewport)
+    expect(spec.to).toBe(0)
+    // 结构保证：条带两端都是 #000（v=0 时两段实心在触发点投影处相接，零残留）
+    expect(spec.maskImage.match(/#000 /g)).toHaveLength(4)
   })
 })
 
