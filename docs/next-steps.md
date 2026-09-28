@@ -11,12 +11,6 @@
 > 的 spec 与 §10 修订记录。单项验收 = 门禁四件套 + `pnpm verify:package` + `pnpm test:acceptance` +
 > 引擎矩阵（WebKit + Firefox 录像取证）。
 
-- [ ] **P3-8 参数化小项**（不占类型名额，顺手清）
-      ① `CURTAIN` 接入 `direction`：垂直幕布 = `centerBandGradient` 补轴实参（90 或 180）+ `to = 视口高 + 2 × 软边`；
-      ② `QR_GRID` 格距常量放开为选项（区间校验静默回落，同 slatWidth 策略）；
-      ③ 可选圆点格：单层平铺 radial，免 `@supports`；圆点直径终值 ≥ 格距 × √2 才有无缝末帧；
-      四向 `direction` 锚定观感过一遍。
-
 - [ ] **P3-9 QUAD 十字四向——先预检，绿了才碰 core**（解冻项；预检通过进实现时先在 requirements §10 补修订记录）
       预检：jitter-lab 里与 CIRCLE@中心 / SQUARE@中心 / CURTAIN 同时间轴 A/B（P1-4 教训：必须和同类项并排比），
       判据 = 十字缝是肉眼可读的身份特征（约束 4）；不绿 → 整个撤回并记 roadmap §4，成本只花在预检。
