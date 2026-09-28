@@ -473,4 +473,4 @@ export type { ThemeAnimationOptions, ... } from '@theme-switch-animation/core'
 
 ---
 
-**当前状态（2026-09-28）**：**0.1.0 / 0.2.0 / 0.3.0 均已发布**，npm `latest = 0.3.0`；0.4.0 已完成 `changeset version`（`reverse` PR1–PR4 全部写进 CHANGELOG，commit c8d1757），**待推 `v0.4.0` tag 发版**。本文档随实现推进到 v1.16。`reverse` 接入面 9 个类型（v1.10–v1.14、v1.16）；v1.15 按 roadmap P3-8 落地 `CURTAIN` 的 `direction` 垂直幕布与 `QR_GRID` 的 `cellSize` / `cellShape` 选项（P3-9 QUAD 预检否决撤回，见 roadmap §4）。动画类型扩展已冻结（v1.13 起 15 种，理由见 `docs/animation-roadmap.md` §4），`reverse` 的接入判据与分期见 `docs/reverse-option-design.md`；剩余发版事项见 `docs/next-steps.md`。
+**当前状态（2026-09-28）**：**0.1.0 / 0.2.0 / 0.3.0 / 0.4.0 / 0.5.0 均已发布**，npm `latest = 0.5.0`（0.2.0 起走 OIDC Trusted Publishing，provenance 已实测挂上；0.5.0 = P3 批次三项 minor：reverse 接入面 5 → 9、CURTAIN direction、QR_GRID cellSize/cellShape）。本文档随实现推进到 v1.16。动画类型扩展已冻结（v1.13 起 15 种，理由见 `docs/animation-roadmap.md` §4），`reverse` 的接入判据与分期见 `docs/reverse-option-design.md`；剩余事项（P2-2 LOGO_MASK 设计稿讨论、真机缩放与 Safari/iOS 反馈排查）见 `docs/next-steps.md`。
