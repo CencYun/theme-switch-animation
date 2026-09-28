@@ -11,14 +11,6 @@
 > 的 spec 与 §10 修订记录。单项验收 = 门禁四件套 + `pnpm verify:package` + `pnpm test:acceptance` +
 > 引擎矩阵（WebKit + Firefox 录像取证）。
 
-- [ ] **P3-7 `reverse` 补接第一批：SQUARE / RECTANGLE / CIRCLE_BLUR**（收益最确定，先做）
-      构造 = 静止盒子 + 渐变补集，**不动** SVG 蒙版的 `mask-size` / `mask-position`（§4 封掉的只是那一条路）。
-      方形 / 矩形：四块边缘板 `add`（免 `@supports`），洞边界 = 触发点 ± 半宽，触发点偏移烘进 stop 的 px 常量；
-      矩形洞与 QUAD 同样需要按轴归一因子。CIRCLE_BLUR：径向洞 + 宽羽化，机制同 `CIRCLE` reverse 的洞式；
-      软边残留用 RIPPLE 反向已验证的过冲技巧（终值过冲一整段羽化宽）。
-      验收：每类型探针实测首帧全隐 / 末帧零残留 / 推进曲线——取补串两端值是历史雷区（CURTAIN 反向、
-      RIPPLE 反向各踩过两处），不许照抄正向端值。
-
 - [ ] **P3-8 参数化小项**（不占类型名额，顺手清）
       ① `CURTAIN` 接入 `direction`：垂直幕布 = `centerBandGradient` 补轴实参（90 或 180）+ `to = 视口高 + 2 × 软边`；
       ② `QR_GRID` 格距常量放开为选项（区间校验静默回落，同 slatWidth 策略）；
