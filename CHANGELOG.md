@@ -1,5 +1,26 @@
 # theme-switch-animation
 
+## 0.5.0
+
+### Minor Changes
+
+- 15f4ead: 参数化小项（不占类型名额）：`CURTAIN` 接入 `direction`，`QR_GRID` 格距与格子形状放开为选项。
+  
+  - **`CURTAIN` + `direction`**（v1.15 前对该类型静默）：`direction` 在 CURTAIN 上映射的是**开合轴**而非四向——`ltr` / `rtl` → 水平幕布（左右开，观感一致，中线对称没有左右之分）、`ttb` / `btt` → **垂直幕布**（上下开），即只有两种视觉形态。默认 `ltr` 下注入 CSS 与此前逐字节一致。`reverse` 的两层板随轴切换（垂直轴 = 上板 180deg + 下板 0deg 向中线合拢）。
+  - **`QR_GRID` + `cellSize`**（px，合法区间 `[16, 200]`，默认 `64`，越界静默回落）：格距是每格方块/圆点的边长与平铺周期，软边按叶片同款比例策略收缩。
+  - **`QR_GRID` + `cellShape: 'square' | 'dot'`**（默认 `'square'`，非法值静默回落）：`'dot'` 为单层平铺 `radial-gradient` 圆点格，免 `@supports`（不需要双层 `intersect`），圆点直径终值 ≥ 格距 × √2 保证末帧无缝；圆点从每格中心**同步**生长，`direction` 对圆点格静默（单层平铺没有推进轴，四向观感一致）。
+- 893d080: `reverse` 补接 `DIAMOND`（接入面 8 → 9 个类型）：菱形洞从视口四边向触发点收拢。
+  
+  - **构造**：两条对角「洞式条带」默认 `add`——透明区 = 两芯交集 = 菱形（`max(|dx+dy|, |dx−dy|) = |dx|+|dy|` 恒等式），条带两端实心保证末帧零残留；免 `@supports`（设计阶段猜测的 intersect + 门控被预检证伪：intersect 给出的是两芯并集 = 八角星）。
+  - **几何**：触发点投影 `S = L/2 + (触发点 − 视口中心)·u` 烘进 px 常量；`from = 1.05 × v0`（`v0` = 四角 (|dx|+|dy|)/√2 最大值，菱形盖住视口的充要条件）、`to = 0`。
+  - **预检**：jitter-lab 与 CIRCLE reverse / SQUARE reverse / DIAMOND 正向同时间轴 A/B——帧证据（菱形洞顶点精确命中预测位置、四条 45° 直边收缩）+ 与 CIRCLE-reverse 区分度（5.0–6.4%）≈ 已发布家族自身量级（SQUARE-vs-CIRCLE 正向 1.1–7.2%）。文档站画廊 DIAMOND 卡挂 `Reverse` 三档控件。
+- 7bc4e58: `reverse` 补接 `SQUARE` / `RECTANGLE` / `CIRCLE_BLUR`（接入面 5 → 8 个类型），三者的反向构造是**静止盒子 + 渐变补集**（蒙版盒子完全静止、只动注册属性），不碰正向那条 `mask-size` / `mask-position` 路径，因此不引入设备像素对齐抖动：
+  
+  - **SQUARE / RECTANGLE**：四块边缘板 `add`（默认合成，免 `@supports`），中心掏「触发点 ± 半宽」的洞从全屏收到 0。RECTANGLE 的洞按轴归一保持视口比例，不与 SQUARE 的正方形洞撞观感。
+  - **CIRCLE_BLUR**：径向洞 + 宽羽化，羽化宽度对齐正向 `feGaussianBlur` 的像素 σ，收拢软边与正向模糊边观感一致；末帧过冲一整段羽化宽，零残留。
+  
+  三类型探针实测首帧全隐 / 末帧零残留 / 推进单调（6400 采样点），引擎矩阵 WebKit / Chrome / Firefox 录像全绿。形状族其余 4 个（`DIAMOND` / `HEXAGON` / `TRIANGLE` / `STAR`）维持不接入：静止盒子绕路依赖轴对齐洞边界，对斜线轮廓不成立。文档站画廊三张卡同步挂 `Reverse` 三档控件。
+
 ## 0.4.0
 
 ### Minor Changes
