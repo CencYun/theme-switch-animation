@@ -11,23 +11,16 @@
 > 的 spec 与 §10 修订记录。单项验收 = 门禁四件套 + `pnpm verify:package` + `pnpm test:acceptance` +
 > 引擎矩阵（WebKit + Firefox 录像取证）。
 
-- [ ] **P3-10 `reverse` 补接第二批：DIAMOND**（对角几何换算重，可自由延期或砍）
-      两条对角反带 `intersect` + `@supports` 门控，基线降级 = 径向洞（观感退化成 CIRCLE reverse）；
-      触发点偏移烘进 stop 的 px 常量。验收同 P3-7 的探针口径。
-      **P3-9 的教训（2026-09-28）先读**：两条带 intersect 的静态帧可能塌回形状家族的现有成员
-      （QUAD 的十字预检实锤）——DIAMOND 反向开工前先在 jitter-lab 出静态帧与 CIRCLE reverse /
-      DIAMOND 正向 A/B，确认「菱形洞收拢」的拓扑 CIRCLE reverse 给不出再动 core。
-
 - [ ] **P2-2 LOGO_MASK 启动期：先出消毒规则设计稿，讨论过再立项**（解冻项；本项不排代码）
       产出 `docs/logo-mask-design.md`（活文档，命名先例同 `reverse-option-design.md`）：
       白名单只收 `<path d>` / `<polygon points>` / `viewBox`、拒绝其余一切 + 专项单测清单；
       内切半径取 `getBBox` 实测（库本来就跑 DOM 测量）、外接方框兜底。
       XSS 面与附带问题的底稿见 roadmap §3 P2-2。
 
-- [ ] **门面同步攒批（P3-7 / P3-8 的门面欠账，发 0.5.0 前清）**：README（特性清单数字 + options 表
-      + reverse 接入面 5 → 8、`cellSize` / `cellShape` / CURTAIN direction 行）、文档站
+- [ ] **门面同步攒批（P3-7 / P3-8 / P3-10 的门面欠账，发 0.5.0 前清）**：README（特性清单数字 + options 表
+      + reverse 接入面 5 → 9、`cellSize` / `cellShape` / CURTAIN direction 行）、文档站
       hero / features / site.ts 数字与措辞、四个 playground 的 Reverse 控件铺到 SQUARE /
-      RECTANGLE / CIRCLE_BLUR 与 QR_GRID / CURTAIN 的参数控件、门面截图重出。
+      RECTANGLE / CIRCLE_BLUR / DIAMOND 与 QR_GRID / CURTAIN 的参数控件、门面截图重出。
       **必须带上需求方 2026-09-28 确认的两条行为说明**（详见 requirements §10 v1.15 第 6 条）：
       ① QR_GRID 圆点格 `direction` 静默（单层无推进轴，四向观感一致）；② CURTAIN 的
       `direction` 是开合轴而非四向（只有水平 / 垂直两种视觉形态）。
