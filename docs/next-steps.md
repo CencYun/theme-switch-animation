@@ -11,16 +11,12 @@
 > 的 spec 与 §10 修订记录。单项验收 = 门禁四件套 + `pnpm verify:package` + `pnpm test:acceptance` +
 > 引擎矩阵（WebKit + Firefox 录像取证）。
 
-- [ ] **P3-9 QUAD 十字四向——先预检，绿了才碰 core**（解冻项；预检通过进实现时先在 requirements §10 补修订记录）
-      预检：jitter-lab 里与 CIRCLE@中心 / SQUARE@中心 / CURTAIN 同时间轴 A/B（P1-4 教训：必须和同类项并排比），
-      判据 = 十字缝是肉眼可读的身份特征（约束 4）；不绿 → 整个撤回并记 roadmap §4，成本只花在预检。
-      绿了再实现：正向 = `centerBandGradient(90)` ∩ `centerBandGradient(180)` + `@supports` 门控（基线降级 = CURTAIN）；
-      反向 = 四层边缘板 `add`。**共享 var 必须按轴归一**（宽 / 高不等时 `calc(var × k)` 缩放），
-      不然一轴先走完、后半程退化成单轴（COMB 式死区）。
-
 - [ ] **P3-10 `reverse` 补接第二批：DIAMOND**（对角几何换算重，可自由延期或砍）
       两条对角反带 `intersect` + `@supports` 门控，基线降级 = 径向洞（观感退化成 CIRCLE reverse）；
       触发点偏移烘进 stop 的 px 常量。验收同 P3-7 的探针口径。
+      **P3-9 的教训（2026-09-28）先读**：两条带 intersect 的静态帧可能塌回形状家族的现有成员
+      （QUAD 的十字预检实锤）——DIAMOND 反向开工前先在 jitter-lab 出静态帧与 CIRCLE reverse /
+      DIAMOND 正向 A/B，确认「菱形洞收拢」的拓扑 CIRCLE reverse 给不出再动 core。
 
 - [ ] **P2-2 LOGO_MASK 启动期：先出消毒规则设计稿，讨论过再立项**（解冻项；本项不排代码）
       产出 `docs/logo-mask-design.md`（活文档，命名先例同 `reverse-option-design.md`）：
