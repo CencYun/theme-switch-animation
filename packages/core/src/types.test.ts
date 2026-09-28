@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   BLADE_COUNT_DEFAULT,
+  CELL_SIZE_DEFAULT,
   MAX_BLADE_COUNT,
+  MAX_CELL_SIZE,
   MAX_SLAT_WIDTH,
   MAX_WAVE_WIDTH,
   MIN_BLADE_COUNT,
+  MIN_CELL_SIZE,
   MIN_SLAT_WIDTH,
   MIN_WAVE_WIDTH,
   REVEAL_VAR,
@@ -78,6 +81,8 @@ describe('resolveAnimationOptions', () => {
       blurAmount: 2,
       direction: 'ltr',
       slatWidth: 72,
+      cellSize: 64,
+      cellShape: 'square',
       waveWidth: 18,
       bladeCount: 8,
       reverse: false,
@@ -95,6 +100,8 @@ describe('resolveAnimationOptions', () => {
         blurAmount: 3,
         direction: ThemeAnimationDirection.BTT,
         slatWidth: 100,
+        cellSize: 96,
+        cellShape: 'dot',
         waveWidth: 40,
         bladeCount: 12,
         reverse: 'auto',
@@ -107,6 +114,8 @@ describe('resolveAnimationOptions', () => {
       blurAmount: 3,
       direction: 'btt',
       slatWidth: 100,
+      cellSize: 96,
+      cellShape: 'dot',
       waveWidth: 40,
       bladeCount: 12,
       reverse: 'auto',
@@ -133,6 +142,25 @@ describe('resolveAnimationOptions', () => {
     expect(resolveAnimationOptions({ slatWidth: MAX_SLAT_WIDTH }).slatWidth).toBe(MAX_SLAT_WIDTH)
   })
 
+  it('cellSize 越界 / NaN / 无穷回落默认，区间边界值有效', () => {
+    for (const cellSize of [0, 15, 201, -64, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(resolveAnimationOptions({ cellSize }).cellSize).toBe(CELL_SIZE_DEFAULT)
+    }
+    expect(resolveAnimationOptions({ cellSize: MIN_CELL_SIZE }).cellSize).toBe(MIN_CELL_SIZE)
+    expect(resolveAnimationOptions({ cellSize: MAX_CELL_SIZE }).cellSize).toBe(MAX_CELL_SIZE)
+  })
+
+  it('cellShape 只认 "square" / "dot" 两个字面量，非法值静默回落 "square"', () => {
+    expect(resolveAnimationOptions({ cellShape: 'dot' }).cellShape).toBe('dot')
+    expect(resolveAnimationOptions({ cellShape: 'square' }).cellShape).toBe('square')
+    expect(resolveAnimationOptions({}).cellShape).toBe('square')
+    // 近义串不能被猜——'round' / 'DOT' 一律回落
+    expect(resolveAnimationOptions({ cellShape: 'round' as 'dot' }).cellShape).toBe('square')
+    expect(resolveAnimationOptions({ cellShape: 'DOT' as 'dot' }).cellShape).toBe('square')
+    expect(resolveAnimationOptions({ cellShape: 1 as unknown as 'dot' }).cellShape).toBe('square')
+    expect(resolveAnimationOptions({ cellShape: undefined }).cellShape).toBe('square')
+  })
+
   it('waveWidth 越界 / NaN / 无穷回落默认，区间边界值有效', () => {
     for (const waveWidth of [0, 7, 61, -18, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(resolveAnimationOptions({ waveWidth }).waveWidth).toBe(WAVE_WIDTH_DEFAULT)
@@ -150,12 +178,14 @@ describe('resolveAnimationOptions', () => {
     expect(resolveAnimationOptions({ bladeCount: MAX_BLADE_COUNT }).bladeCount).toBe(MAX_BLADE_COUNT)
   })
 
-  it('忽略受控模式字段，只返回十个动画参数', () => {
+  it('忽略受控模式字段，只返回十二个动画参数', () => {
     const resolved = resolveAnimationOptions({ isDark: true, onChange: () => {} })
     expect(Object.keys(resolved).sort()).toEqual([
       'animationType',
       'bladeCount',
       'blurAmount',
+      'cellShape',
+      'cellSize',
       'darkClassName',
       'direction',
       'duration',

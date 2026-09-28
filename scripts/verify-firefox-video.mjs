@@ -27,7 +27,7 @@
  */
 import { createServer } from 'node:http'
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -68,7 +68,11 @@ await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok))
 const { firefox } = await import(pathToFileURL(join(PW_DIR, 'node_modules', 'playwright', 'index.mjs')).href)
 const ffmpegDir = (await readdir(join(process.env.LOCALAPPDATA, 'ms-playwright'))).find((d) => d.startsWith('ffmpeg'))
 const ffmpeg = join(process.env.LOCALAPPDATA, 'ms-playwright', ffmpegDir, 'ffmpeg-win64.exe')
-const work = await mkdtemp(join(process.env.FF_WORK_DIR ?? tmpdir(), 'ff-video-'))
+// FF_WORK_DIR 指到仓库内共享输出目录时，父目录可能刚被 verify-engine 的 OUT_DIR 清理删掉
+// （两脚本共享 scripts/.verify-engine-out 且后者启动即 rm -rf），mkdtemp 不自建父目录，先递归创建
+const ffWorkDir = process.env.FF_WORK_DIR ?? tmpdir()
+await mkdir(ffWorkDir, { recursive: true })
+const work = await mkdtemp(join(ffWorkDir, 'ff-video-'))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const meanLum = (f) => {
   let s = 0
@@ -244,9 +248,9 @@ try {
 
   console.log('\n=== B. 暂停 + 逐步 seek：确定性帧序下的单调性 ===')
   const collapseSteps = await steppedRun('collapse-steps', 'dark', { reverse: true })
-  judgeStepped('收起（@property 洞）', collapseSteps, 'up')
+  judgeStepped('收起（@property 洞）', collapseSteps, 'up', { noiseLen: 2 })
   const expandSteps = await steppedRun('expand-steps', 'light', { reverse: false }, { markerBlip: true })
-  judgeStepped('扩散（mask-size/position）', expandSteps, 'down')
+  judgeStepped('扩散（mask-size/position）', expandSteps, 'down', { noiseLen: 2 })
 
   // C（`--all-types`）：把 B 的确定性 seek 取证摊到每一个动画类型上。
   // 动机：verify-engine 的截图判据在 Firefox 上整体失效（不合成 VT 伪元素层），

@@ -7,13 +7,16 @@ describe('core 公开导出', () => {
     expect(Object.keys(core).sort()).toEqual(
       [
         // types
+        'BLADE_COUNT_DEFAULT',
         'BLUR_MASK_DEVIATION_FACTOR',
         'BLUR_MAX_MASK_SIZE',
-        'BLADE_COUNT_DEFAULT',
+        'CELL_SIZE_DEFAULT',
         'MAX_BLADE_COUNT',
+        'MAX_CELL_SIZE',
         'MAX_SLAT_WIDTH',
         'MAX_WAVE_WIDTH',
         'MIN_BLADE_COUNT',
+        'MIN_CELL_SIZE',
         'MIN_SLAT_WIDTH',
         'MIN_WAVE_WIDTH',
         'QR_GRID_CELL_PX',
@@ -72,6 +75,7 @@ describe('core 公开导出', () => {
         'getMaskGeometry',
         'getMaxRadiusToCorners',
         'getPanelReverseMaskSpec',
+        'getQrGridDotRevealSpec',
         'getQrGridMaskSpec',
         'getRectangleMaskGeometry',
         'getRectangleReverseRevealSpec',

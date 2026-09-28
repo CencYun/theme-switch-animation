@@ -1,9 +1,12 @@
 export {
   BLADE_COUNT_DEFAULT,
+  CELL_SIZE_DEFAULT,
   MAX_BLADE_COUNT,
+  MAX_CELL_SIZE,
   MAX_SLAT_WIDTH,
   MAX_WAVE_WIDTH,
   MIN_BLADE_COUNT,
+  MIN_CELL_SIZE,
   MIN_SLAT_WIDTH,
   MIN_WAVE_WIDTH,
   REVEAL_VAR,
@@ -20,6 +23,7 @@ export {
 export type {
   ResolvedAnimationOptions,
   ShapeAnimationType,
+  ThemeAnimationCellShape,
   ThemeAnimationOptions,
 } from './types'
 
@@ -71,6 +75,7 @@ export {
   getMaskGeometry,
   getMaxRadiusToCorners,
   getPanelReverseMaskSpec,
+  getQrGridDotRevealSpec,
   getQrGridMaskSpec,
   getRectangleMaskGeometry,
   getRectangleReverseRevealSpec,

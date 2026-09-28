@@ -205,6 +205,14 @@ ${selector} {
         return value
       }
 
+      /** direction 同样白名单解析：未知值抛错，防止"TTB 报告"其实测的是默认 ltr */
+      function resolveDirection(name) {
+        if (name === undefined || name === null) return undefined
+        const values = ['ltr', 'rtl', 'ttb', 'btt']
+        if (!values.includes(name)) throw new Error(`未知方向 "${name}"，可选：${values.join(' / ')}`)
+        return name
+      }
+
       const lab = {
         /** 无动画地把主题设为 light / dark */
         reset(theme) {
@@ -228,6 +236,10 @@ ${selector} {
               reverse: opts.reverse ?? true,
               duration: opts.duration ?? 750,
               easing: opts.easing ?? 'ease-in-out',
+              // P3-8 起透传 QR_GRID / CURTAIN 的参数化选项；不传就不带 key，保持默认路径零差异
+              ...(resolveDirection(opts.direction) !== undefined ? { direction: resolveDirection(opts.direction) } : {}),
+              ...(opts.cellShape !== undefined ? { cellShape: String(opts.cellShape) } : {}),
+              ...(opts.cellSize !== undefined ? { cellSize: Number(opts.cellSize) } : {}),
             },
             trigger: target,
           })

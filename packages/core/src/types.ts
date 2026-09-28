@@ -71,10 +71,14 @@ export interface ThemeAnimationOptions {
   easing?: string
   /** 模糊蒙版的模糊强度（`feGaussianBlur` 的视觉强度系数），默认 `2`。仅 `CIRCLE_BLUR` 生效 */
   blurAmount?: number
-  /** 扫描方向，默认 `'ltr'`。仅 BLINDS / SCAN / QR_GRID 生效，其余类型忽略 */
+  /** 扫描方向，默认 `'ltr'`。BLINDS / SCAN / QR_GRID 控制扫开方向；CURTAIN 控制开合轴（ltr/rtl 水平、ttb/btt 垂直，v1.15 起） */
   direction?: ThemeAnimationDirection
   /** 百叶窗叶片宽度（px），合法范围 `[16, 200]`，默认 `72`。仅 `BLINDS` 生效，非法值静默回落默认 */
   slatWidth?: number
+  /** QR_GRID 格距（px，每格方块/圆点的最大边长与平铺周期），合法范围 `[16, 200]`，默认 `64`。仅 `QR_GRID` 生效，非法值静默回落默认 */
+  cellSize?: number
+  /** QR_GRID 格子形状：`'square'`（默认，双层 intersect 方块）| `'dot'`（单层平铺圆点，免 `@supports`）。非法值静默回落默认 */
+  cellShape?: 'square' | 'dot'
   /** 涟漪波长（px，相邻两圈波峰间距），合法范围 `[8, 60]`，默认 `18`。仅 `RIPPLE` 生效，非法值静默回落默认 */
   waveWidth?: number
   /** 扇叶数，合法范围 `[4, 16]` 的整数，默认 `8`。仅 `FAN` 生效，非法值静默回落默认 */
@@ -101,6 +105,8 @@ export interface ResolvedAnimationOptions {
   blurAmount: number
   direction: ThemeAnimationDirection
   slatWidth: number
+  cellSize: number
+  cellShape: ThemeAnimationCellShape
   waveWidth: number
   bladeCount: number
   reverse: boolean | 'auto'
@@ -110,6 +116,14 @@ export interface ResolvedAnimationOptions {
 export const SLAT_WIDTH_DEFAULT = 72
 export const MIN_SLAT_WIDTH = 16
 export const MAX_SLAT_WIDTH = 200
+
+/** QR_GRID 格距的默认值与合法区间（同 slatWidth 的静默回落策略；区间一致，语义不同——格距是二维平铺周期） */
+export const CELL_SIZE_DEFAULT = 64
+export const MIN_CELL_SIZE = 16
+export const MAX_CELL_SIZE = 200
+
+/** QR_GRID 格子形状的合法字面量（非法值静默回落默认，同 direction 的逐字面量策略） */
+export type ThemeAnimationCellShape = 'square' | 'dot'
 
 /** 涟漪波长的默认值与合法区间（同 slatWidth 的静默回落策略） */
 export const WAVE_WIDTH_DEFAULT = 18
@@ -129,6 +143,8 @@ export const THEME_ANIMATION_DEFAULTS: Readonly<ResolvedAnimationOptions> = Obje
   blurAmount: 2,
   direction: ThemeAnimationDirection.LTR,
   slatWidth: SLAT_WIDTH_DEFAULT,
+  cellSize: CELL_SIZE_DEFAULT,
+  cellShape: 'square',
   waveWidth: WAVE_WIDTH_DEFAULT,
   bladeCount: BLADE_COUNT_DEFAULT,
   reverse: false,
@@ -164,6 +180,8 @@ export function resolveAnimationOptions(options: ThemeAnimationOptions = {}): Re
     blurAmount: isValidBlurAmount(options.blurAmount) ? options.blurAmount : THEME_ANIMATION_DEFAULTS.blurAmount,
     direction: isValidDirection(options.direction) ? options.direction : THEME_ANIMATION_DEFAULTS.direction,
     slatWidth: isValidSlatWidth(options.slatWidth) ? options.slatWidth : THEME_ANIMATION_DEFAULTS.slatWidth,
+    cellSize: isValidCellSize(options.cellSize) ? options.cellSize : THEME_ANIMATION_DEFAULTS.cellSize,
+    cellShape: isValidCellShape(options.cellShape) ? options.cellShape : THEME_ANIMATION_DEFAULTS.cellShape,
     waveWidth: isValidWaveWidth(options.waveWidth) ? options.waveWidth : THEME_ANIMATION_DEFAULTS.waveWidth,
     bladeCount: isValidBladeCount(options.bladeCount) ? options.bladeCount : THEME_ANIMATION_DEFAULTS.bladeCount,
     reverse: isValidReverse(options.reverse) ? options.reverse : THEME_ANIMATION_DEFAULTS.reverse,
@@ -200,6 +218,16 @@ function isValidDirection(value: ThemeAnimationDirection | undefined): value is 
 /** slatWidth 仅 BLINDS 消费；越界 / NaN / 无穷静默回落默认 */
 function isValidSlatWidth(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value >= MIN_SLAT_WIDTH && value <= MAX_SLAT_WIDTH
+}
+
+/** cellSize 仅 QR_GRID 消费；与 slatWidth 同款越界 / NaN / 无穷静默回落 */
+function isValidCellSize(value: number | undefined): value is number {
+  return value !== undefined && Number.isFinite(value) && value >= MIN_CELL_SIZE && value <= MAX_CELL_SIZE
+}
+
+/** cellShape 仅 QR_GRID 消费；逐字面量比对，非法值静默回落默认（同 direction 策略，不猜近义串） */
+function isValidCellShape(value: ThemeAnimationCellShape | undefined): value is ThemeAnimationCellShape {
+  return value === 'square' || value === 'dot'
 }
 
 /** waveWidth 仅 RIPPLE 消费；越界 / NaN / 无穷静默回落默认 */

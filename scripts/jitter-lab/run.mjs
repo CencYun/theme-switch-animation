@@ -350,6 +350,9 @@ async function main() {
     // --type / --reverse 不传时保持本实验台的原语义（CIRCLE + reverse:true 洞式收起）
     const startOpts = [`duration: ${duration}`, `patch: ${patchJson}`, `cssVariant: ${JSON.stringify(args.css ?? null)}`]
     if (args.type) startOpts.push(`animationType: ${JSON.stringify(String(args.type))}`)
+    if (args.direction) startOpts.push(`direction: ${JSON.stringify(String(args.direction))}`)
+    if (args.cellShape) startOpts.push(`cellShape: ${JSON.stringify(String(args.cellShape))}`)
+    if (args.cellSize !== undefined) startOpts.push(`cellSize: ${Number(args.cellSize)}`)
     if (args.reverse !== undefined) {
       const r = args.reverse
       const lit = r === true || r === 'true' ? 'true' : r === 'false' ? 'false' : JSON.stringify(String(r))

@@ -43,6 +43,7 @@ import {
   getMaskGeometry,
   getMaxRadiusToCorners,
   getPanelReverseMaskSpec,
+  getQrGridDotRevealSpec,
   getQrGridMaskSpec,
   getRectangleMaskGeometry,
   getRectangleReverseRevealSpec,
@@ -447,6 +448,21 @@ describe('QR_GRID（方块格子）', () => {
     expect(getQrGridMaskSpec(ThemeAnimationDirection.BTT).baselineImage).toContain('linear-gradient(0deg')
   })
 
+  it('cellSize 选项缩放平铺周期与 to：96px 格距的软边 = round(96 × 0.28) = 20（封顶）', () => {
+    const spec = getQrGridMaskSpec(ThemeAnimationDirection.LTR, 96)
+    expect(spec.to).toBe(96)
+    expect(spec.baselineSize).toBe('96px 100%')
+    expect(spec.cellSize).toBe('100% 96px, 96px 100%')
+    expect(spec.baselineImage).toContain('calc(var(--theme-switch-reveal) + 20px)')
+    // 32px 格距的软边按比例收缩（round(32 × 0.28) = 9），from 仍是 -2×软边
+    const small = getQrGridMaskSpec(ThemeAnimationDirection.LTR, 32)
+    expect(small.to).toBe(32)
+    expect(small.from).toBe(-18)
+    expect(small.baselineImage).toContain('calc(var(--theme-switch-reveal) + 9px)')
+    // 缺省 = 64（QR_GRID_CELL_PX），与 v1.14 前的行为逐字节一致
+    expect(getQrGridMaskSpec(ThemeAnimationDirection.LTR)).toEqual(getQrGridMaskSpec(ThemeAnimationDirection.LTR, QR_GRID_CELL_PX))
+  })
+
   it('守卫：仅 QR_GRID 命中 isQrGridAnimationType', () => {
     expect(isQrGridAnimationType(ThemeAnimationType.QR_GRID)).toBe(true)
     for (const type of [
@@ -457,6 +473,44 @@ describe('QR_GRID（方块格子）', () => {
     ] as const) {
       expect(isQrGridAnimationType(type)).toBe(false)
     }
+  })
+})
+
+describe('QR_GRID 圆点格（cellShape: dot，v1.15）', () => {
+  const v = `var(${REVEAL_VAR})`
+
+  it('串结构：单层平铺 radial，圆从每格中心生长，免 @supports 的关键就是单层', () => {
+    const spec = getQrGridDotRevealSpec(64)
+    expect(spec.maskImage).toBe(
+      `radial-gradient(circle, #000 0 ${v}, transparent calc(${v} + 18px))`,
+    )
+    expect(spec.maskSize).toBe('64px 64px')
+    expect(spec.maskRepeat).toBe('repeat')
+  })
+
+  it('末帧覆盖数学：to = ceil(格距 × √2 / 2)，圆半径 ≥ 半对角线才盖住整格（直径 ≥ 格距 × √2）', () => {
+    for (const cellSize of [16, 32, 64, 96, 128, 200]) {
+      const spec = getQrGridDotRevealSpec(cellSize)
+      expect(spec.to).toBe(Math.ceil(cellSize * Math.SQRT1_2))
+      expect(spec.to * 2).toBeGreaterThanOrEqual(cellSize * Math.SQRT2) // 直径终值 ≥ 格距 × √2
+    }
+    expect(getQrGridDotRevealSpec(64).to).toBe(46)
+  })
+
+  it('from = -软边：圆半径为负被 stop 单调化夹成零宽，首帧整屏透出旧主题', () => {
+    const spec = getQrGridDotRevealSpec(64)
+    expect(spec.from).toBe(-18)
+    expect(spec.from).toBeLessThan(0)
+  })
+
+  it('direction 静默：圆点格没有方向入参，四向无差异（与方块格的方向锚定不同）', () => {
+    // 函数签名只有 cellSize——四向一致由"无方向参数"这一结构保证
+    expect(getQrGridDotRevealSpec(64)).toEqual(getQrGridDotRevealSpec())
+  })
+
+  it('软边复用 getBlindsFeatherPx（与方块格 / BLINDS 同款按比例封顶策略）', () => {
+    expect(getQrGridDotRevealSpec(16).maskImage).toContain('transparent calc(var(--theme-switch-reveal) + 4px)')
+    expect(getQrGridDotRevealSpec(200).maskImage).toContain('transparent calc(var(--theme-switch-reveal) + 20px)')
   })
 })
 
@@ -762,22 +816,28 @@ describe('CURTAIN（双开门）', () => {
     expect(spec.to / 2 - viewport.width / 2).toBe(f)
   })
 
+  it('direction 映射开合轴（v1.15）：ltr/rtl 同为水平 90deg、ttb/btt 同为垂直 180deg，to 随轴换全长', () => {
+    const horizontal = getCurtainRevealSpec(viewport, ThemeAnimationDirection.LTR)
+    expect(getCurtainRevealSpec(viewport, ThemeAnimationDirection.RTL)).toEqual(horizontal)
+    expect(horizontal.to).toBe(viewport.width + 2 * f)
+    const vertical = getCurtainRevealSpec(viewport, ThemeAnimationDirection.TTB)
+    expect(getCurtainRevealSpec(viewport, ThemeAnimationDirection.BTT)).toEqual(vertical)
+    expect(vertical.to).toBe(viewport.height + 2 * f)
+    expect(vertical.maskImage).toBe(
+      `linear-gradient(180deg, transparent calc(50% - ${v} / 2 - ${f}px),` +
+      ` #000 calc(50% - ${v} / 2) calc(50% + ${v} / 2),` +
+      ` transparent calc(50% + ${v} / 2 + ${f}px))`,
+    )
+  })
+
   it('与 BLINDS / SCAN 同族：命中 isRevealAnimationType 并由 getRevealMaskSpec 分发', () => {
     expect(isRevealAnimationType(ThemeAnimationType.CURTAIN)).toBe(true)
     expect(getRevealMaskSpec(ThemeAnimationType.CURTAIN, ThemeAnimationDirection.LTR, 72, viewport))
       .toEqual(getCurtainRevealSpec(viewport))
   })
 
-  it('不消费 direction：四个取值结果完全一致（中线对称推开没有方向语义）', () => {
-    const base = getCurtainRevealSpec(viewport)
-    for (const direction of [
-      ThemeAnimationDirection.LTR,
-      ThemeAnimationDirection.RTL,
-      ThemeAnimationDirection.TTB,
-      ThemeAnimationDirection.BTT,
-    ] as const) {
-      expect(getRevealMaskSpec(ThemeAnimationType.CURTAIN, direction, 72, viewport)).toEqual(base)
-    }
+  it('默认 direction = ltr：不传方向时输出与 v1.14 的恒水平行为逐字节一致', () => {
+    expect(getCurtainRevealSpec(viewport)).toEqual(getCurtainRevealSpec(viewport, ThemeAnimationDirection.LTR))
   })
 
   it('不消费触发点：既不是形状类也不是模糊类，getMaskGeometry 按既有语义回落 CIRCLE', () => {
@@ -791,7 +851,7 @@ describe('CURTAIN（双开门）', () => {
     )
   })
 
-  it('反向是两层 add（左板 90deg + 右板 270deg），不是把正向串取补', () => {
+  it('反向是两层 add（轴随 direction），不是把正向串取补', () => {
     const spec = getCurtainReverseRevealSpec(viewport)
     expect(spec.maskImage).toBe(
       `linear-gradient(90deg, #000 0 ${v}, transparent calc(${v} + ${f}px)), ` +
@@ -801,9 +861,15 @@ describe('CURTAIN（双开门）', () => {
     // 层数与 mask-size / mask-repeat 的逗号列表长度必须一致
     expect(spec.maskSize).toBe('100% 100%, 100% 100%')
     expect(spec.maskRepeat).toBe('no-repeat, no-repeat')
+    // 垂直轴（ttb）：上板 180deg + 下板 0deg，构造全等仅轴与长度不同
+    const vertical = getCurtainReverseRevealSpec(viewport, ThemeAnimationDirection.TTB)
+    expect(vertical.maskImage).toBe(
+      `linear-gradient(180deg, #000 0 ${v}, transparent calc(${v} + ${f}px)), ` +
+      `linear-gradient(0deg, #000 0 ${v}, transparent calc(${v} + ${f}px))`,
+    )
   })
 
-  it('反向两端各留一个软边：from = -软边 让首帧两板全在屏外，to = 半屏 + 软边 让两板越过中线', () => {
+  it('反向两端各留一个软边：from = -软边 让首帧两板全在屏外，to = 半轴长 + 软边 让两板越过中线', () => {
     const spec = getCurtainReverseRevealSpec(viewport)
     expect(spec.from).toBe(-f)
     expect(spec.to).toBe(viewport.width / 2 + f)
@@ -811,6 +877,17 @@ describe('CURTAIN（双开门）', () => {
     expect(spec.to - viewport.width / 2).toBe(f)
     // 首帧实心段终点为负 → 整块板在屏幕外，起始全隐
     expect(spec.from).toBeLessThan(0)
+    // 垂直轴的 to 用半高
+    expect(getCurtainReverseRevealSpec(viewport, ThemeAnimationDirection.TTB).to).toBe(viewport.height / 2 + f)
+  })
+
+  it('分发：getCurtainMaskSpec / getRevealMaskSpec 的 reverse 位与 direction 轴各自生效，默认正向水平', () => {
+    expect(getCurtainMaskSpec(viewport, ThemeAnimationDirection.LTR, true)).toEqual(
+      getCurtainReverseRevealSpec(viewport),
+    )
+    expect(getCurtainMaskSpec(viewport)).toEqual(getCurtainRevealSpec(viewport))
+    expect(getRevealMaskSpec(ThemeAnimationType.CURTAIN, ThemeAnimationDirection.TTB, 72, viewport, true))
+      .toEqual(getCurtainReverseRevealSpec(viewport, ThemeAnimationDirection.TTB))
   })
 
   it('反向终值随视口宽缩放，且与正向的"整宽 + 2 软边"不是一回事', () => {
@@ -818,13 +895,6 @@ describe('CURTAIN（双开门）', () => {
     const narrow = getCurtainReverseRevealSpec({ width: 375, height: 667 })
     expect(wide.to - narrow.to).toBe((1920 - 375) / 2)
     expect(wide.to).toBeLessThan(getCurtainRevealSpec({ width: 1920, height: 1080 }).to)
-  })
-
-  it('分发：getCurtainMaskSpec / getRevealMaskSpec 的 reverse 位在正反向之间切换，默认正向', () => {
-    expect(getCurtainMaskSpec(viewport, true)).toEqual(getCurtainReverseRevealSpec(viewport))
-    expect(getCurtainMaskSpec(viewport)).toEqual(getCurtainRevealSpec(viewport))
-    expect(getRevealMaskSpec(ThemeAnimationType.CURTAIN, ThemeAnimationDirection.LTR, 72, viewport, true))
-      .toEqual(getCurtainReverseRevealSpec(viewport))
   })
 
   it('视口宽度决定终值：窄屏与宽屏的 to 差等于视口宽之差', () => {

@@ -473,14 +473,14 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
     expect(css).toContain('--theme-switch-reveal: 616px;')
   })
 
-  it('CURTAIN：走 px 族同一生成器，中线对称三段渐变、终值 = 视口宽 + 2×软边', () => {
+  it('CURTAIN 默认 ltr：水平中线对称三段渐变、终值 = 视口宽 + 2×软边', () => {
     installFakeViewTransition()
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
 
     runThemeTransition({
       domUpdate: () => {},
-      options: { animationType: ThemeAnimationType.CURTAIN, direction: 'ttb' },
+      options: { animationType: ThemeAnimationType.CURTAIN },
     })
 
     const css = styleNode()!.textContent!
@@ -492,8 +492,68 @@ describe('runThemeTransition 动画路径（jsdom + 模拟 startViewTransition�
     expect(css).toContain('mask-repeat: no-repeat;')
     // 800 + 2 × 24：两条软边都推出画面才算盖满
     expect(css).toContain('--theme-switch-reveal: 848px;')
-    // direction 被忽略：渐变角恒为 90deg（水平轴）
     expect(css).not.toContain('linear-gradient(180deg')
+  })
+
+  it('CURTAIN ttb：direction 切到垂直轴（垂直幕布），to = 视口高 + 2×软边；rtl 与 ltr 同为水平', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+
+    runThemeTransition({
+      domUpdate: () => {},
+      options: { animationType: ThemeAnimationType.CURTAIN, direction: 'ttb' },
+    })
+    const vertical = styleNode()!.textContent!
+    removeAnimationStyle(document)
+    expect(vertical).toContain('linear-gradient(180deg, transparent calc(50% - var(--theme-switch-reveal) / 2 - 24px)')
+    expect(vertical).toContain('--theme-switch-reveal: 648px;')
+    expect(vertical).not.toContain('linear-gradient(90deg')
+
+    runThemeTransition({
+      domUpdate: () => {},
+      options: { animationType: ThemeAnimationType.CURTAIN, direction: 'rtl' },
+    })
+    expect(styleNode()!.textContent).toContain('linear-gradient(90deg, transparent calc(50%')
+  })
+
+  it('QR_GRID dot：单层平铺 radial 走 reveal 生成器（无 @supports 增强），to = ceil(格距 × √2 / 2)', () => {
+    installFakeViewTransition()
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(800)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+
+    runThemeTransition({
+      domUpdate: () => {},
+      options: { animationType: ThemeAnimationType.QR_GRID, cellShape: 'dot', cellSize: 96 },
+    })
+    const css = styleNode()!.textContent!
+    expect(css).toContain('@property --theme-switch-reveal')
+    // 单层平铺圆点：radial 不带 at（默认格中心），mask-size = 格距、repeat 平铺
+    expect(css).toContain('radial-gradient(circle, #000 0 var(--theme-switch-reveal), transparent calc(var(--theme-switch-reveal) + 20px))')
+    expect(css).toContain('mask-size: 96px 96px;')
+    expect(css).toContain('mask-repeat: repeat;')
+    expect(css).toContain('--theme-switch-reveal: -20px;')
+    // ceil(96 × √2 / 2) = 68：直径终值 136 ≥ 格距 × √2 ≈ 135.8，四邻圆无缝
+    expect(css).toContain('--theme-switch-reveal: 68px;')
+    // 单层免增强：不出现 intersect 双层块
+    expect(css).not.toContain('mask-composite')
+    expect(css).not.toContain('@supports')
+    // direction 对圆点格静默：换向输出不变
+    removeAnimationStyle(document)
+    runThemeTransition({
+      domUpdate: () => {},
+      options: { animationType: ThemeAnimationType.QR_GRID, cellShape: 'dot', cellSize: 96, direction: 'ttb' },
+    })
+    expect(styleNode()!.textContent).toBe(css)
+
+    // 非法 cellShape 静默回落方块格（有 @supports 增强与 intersect）
+    removeAnimationStyle(document)
+    runThemeTransition({
+      domUpdate: () => {},
+      options: { animationType: ThemeAnimationType.QR_GRID, cellShape: 'round' as 'dot' },
+    })
+    expect(styleNode()!.textContent).toContain('mask-composite: intersect;')
+    expect(styleNode()!.textContent).toContain('--theme-switch-reveal: -36px;')
   })
 
   it('CLOCK_SWEEP：注册属性改用 <angle> 的 SWEEP_VAR，keyframes 值带 deg 后缀', () => {

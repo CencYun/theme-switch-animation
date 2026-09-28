@@ -3,6 +3,7 @@ import {
   getCircleRevertHoleGeometry,
   getMaskGeometry,
   getPanelReverseMaskSpec,
+  getQrGridDotRevealSpec,
   getQrGridMaskSpec,
   getRevealMaskSpec,
   getRippleMaskSpec,
@@ -193,20 +194,26 @@ export function runThemeTransition(params: RunThemeTransitionParams): RunThemeTr
   // 共用同一 CSS 生成器。BLINDS / SCAN 无触发点；RIPPLE 与角度族以触发点为波源 / 轴心。
   // SQUARE / RECTANGLE / CIRCLE_BLUR 正向走 mask-size 驱动的 geometry，反向才落到 reveal
   // 串上（四板 add / 径向洞宽羽化），与 CIRCLE 反向走 holeGeometry 的分流方式同构。
+  // QR_GRID 圆点格（cellShape: 'dot'）是单层平铺 radial，免 @supports，走 reveal 同一生成器；
+  // 方块格（默认）仍走独立的 qrGrid 双层规格。
+  const qrGridDot = isQrGridAnimationType(resolved.animationType) && resolved.cellShape === 'dot'
+    ? getQrGridDotRevealSpec(resolved.cellSize)
+    : undefined
   const reveal = isRevealAnimationType(resolved.animationType)
     ? getRevealMaskSpec(resolved.animationType, resolved.direction, resolved.slatWidth, viewport, collapse)
     : isRippleAnimationType(resolved.animationType)
       ? getRippleMaskSpec(center, viewport, resolved.waveWidth, collapse)
       : isSweepAnimationType(resolved.animationType)
         ? getSweepMaskSpec(resolved.animationType, center, resolved.bladeCount, collapse)
-        : collapse && isPanelReverseAnimationType(resolved.animationType)
-          ? getPanelReverseMaskSpec(resolved.animationType, center, viewport)
-          : collapse && isBlurAnimationType(resolved.animationType)
-            ? getBlurCircleReverseRevealSpec(center, viewport, resolved.blurAmount)
-            : undefined
-  // QR_GRID：新层"列 ∩ 行"方块格子双层蒙版，同样无触发点。
-  const qrGrid = isQrGridAnimationType(resolved.animationType)
-    ? getQrGridMaskSpec(resolved.direction)
+        : qrGridDot
+          ?? (collapse && isPanelReverseAnimationType(resolved.animationType)
+            ? getPanelReverseMaskSpec(resolved.animationType, center, viewport)
+            : collapse && isBlurAnimationType(resolved.animationType)
+              ? getBlurCircleReverseRevealSpec(center, viewport, resolved.blurAmount)
+              : undefined)
+  // QR_GRID：新层"列 ∩ 行"方块格子双层蒙版，同样无触发点；圆点格已在上面走 reveal。
+  const qrGrid = isQrGridAnimationType(resolved.animationType) && !qrGridDot
+    ? getQrGridMaskSpec(resolved.direction, resolved.cellSize)
     : undefined
   const geometry = reveal || qrGrid ? undefined : getMaskGeometry(resolved.animationType, center, viewport, resolved.blurAmount)
   const css = buildAnimationCSS({

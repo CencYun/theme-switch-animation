@@ -417,58 +417,71 @@ export function getScanRevealSpec(direction: ThemeAnimationDirection, viewport: 
 
 /**
  * CURTAIN 双开门：新主题自屏幕中线向两侧对称揭开。主层与 QR_GRID 的垂直轴层共用
- * `centerBandGradient` 对称带构造器（轴固定为水平），只有一层、且不消费 direction。
+ * `centerBandGradient` 对称带构造器（轴由 `direction` 决定，v1.15 前固定水平），只有一层。
+ *
+ * **direction 映射开合轴**（v1.15）：`ltr` / `rtl` → 水平轴（90deg，左右开，观感一致——
+ * 中线对称没有左右之分）；`ttb` / `btt` → 垂直轴（180deg，上下开，垂直幕布）。默认 `ltr`
+ * 下输出与 v1.14 逐字节一致。
  *
  * 起始帧（reveal = 0）实心段宽度为 0，但两侧各留一条 `CURTAIN_FEATHER_PX` 的软边——表现为
  * 中缝先透出一道光、再向两边推开，这是幕布观感的一部分（同 RIPPLE 起始帧的中心淡纹）。
- * 末帧要把两条软边都推出画面，故 `to = 视口宽 + 2 × 软边`。
+ * 末帧要把两条软边都推出画面，故 `to = 开合轴全长 + 2 × 软边`。
  */
 export const CURTAIN_FEATHER_PX = 24
 
-export function getCurtainRevealSpec(viewport: Size): RevealMaskSpec {
+export function getCurtainRevealSpec(viewport: Size, direction: ThemeAnimationDirection = ThemeAnimationDirection.LTR): RevealMaskSpec {
   const f = CURTAIN_FEATHER_PX
+  const vertical = REVEAL_DIRECTION[direction].axis === 'y'
   return {
     from: 0,
-    to: viewport.width + 2 * f,
-    maskImage: centerBandGradient(90, f),
+    to: (vertical ? viewport.height : viewport.width) + 2 * f,
+    maskImage: centerBandGradient(vertical ? 180 : 90, f),
     maskSize: '100% 100%',
     maskRepeat: 'no-repeat',
   }
 }
 
 /**
- * CURTAIN 反向：两扇幕布从屏幕两侧向中线合拢，新主题随之从边缘显出。
+ * CURTAIN 反向：两扇幕布从屏幕边缘向中线合拢，新主题随之从边缘显出。轴随 `direction`：
+ * 水平轴 = 左板 90deg + 右板 270deg，垂直轴 = 上板 180deg + 下板 0deg（软边都朝内）。
  *
  * **不能靠"把正向串取补"实现**——正向是一条居中透明带的补集，那条带被钉在 50%、
- * 无论把 `r` 收到多负都消不掉，末帧必留一条居中半透明缝（实测 40 全透 + 150 半透，
- * 过冲与"单渐变两侧板"两种改法都只减小不消除）。
+ * 无论把 `r` 收到多负都消不掉（实测 40 全透 + 150 半透，过冲与"单渐变两侧板"两种改法都只减小不消除）。
  *
- * 可用的构造是**两层 + 默认 `add`（取最大 alpha）**：左板自左边缘向右长、右板自右
- * 边缘向左长，软边都朝内。两板在中央重叠时取最大值而不是相互抵消，所以末帧必然全实。
- * 两端各留一个软边宽度：`from = -软边` 让首帧两板整体在屏幕外（全隐），
- * `to = 半屏 + 软边` 让两板都越过中线（全覆盖）。探针实测首帧 6400/6400 全隐、
- * 末帧 0 残留、推进近似线性。
+ * 可用的构造是**两层 + 默认 `add`（取最大 alpha）**：两板在中央重叠时取最大值而不是相互抵消，
+ * 所以末帧必然全实。两端各留一个软边宽度：`from = -软边` 让首帧两板整体在屏幕外（全隐），
+ * `to = 半轴长 + 软边` 让两板都越过中线（全覆盖）。探针实测首帧 6400/6400 全隐、
+ * 末帧 0 残留、推进近似线性（水平轴；垂直轴构造全等，仅轴与长度不同）。
  */
-export function getCurtainReverseRevealSpec(viewport: Size): RevealMaskSpec {
+export function getCurtainReverseRevealSpec(
+  viewport: Size,
+  direction: ThemeAnimationDirection = ThemeAnimationDirection.LTR,
+): RevealMaskSpec {
   const v = `var(${REVEAL_VAR})`
   const f = CURTAIN_FEATHER_PX
-  const layerLeft = `linear-gradient(90deg, #000 0 ${v}, transparent calc(${v} + ${f}px))`
-  const layerRight = `linear-gradient(270deg, #000 0 ${v}, transparent calc(${v} + ${f}px))`
+  const vertical = REVEAL_DIRECTION[direction].axis === 'y'
+  const [leadAngle, trailAngle] = vertical ? [180, 0] : [90, 270]
+  const layerLead = `linear-gradient(${leadAngle}deg, #000 0 ${v}, transparent calc(${v} + ${f}px))`
+  const layerTrail = `linear-gradient(${trailAngle}deg, #000 0 ${v}, transparent calc(${v} + ${f}px))`
   return {
     from: -f,
-    to: viewport.width / 2 + f,
-    maskImage: `${layerLeft}, ${layerRight}`,
+    to: (vertical ? viewport.height : viewport.width) / 2 + f,
+    maskImage: `${layerLead}, ${layerTrail}`,
     maskSize: '100% 100%, 100% 100%',
     maskRepeat: 'no-repeat, no-repeat',
   }
 }
 
 /**
- * CURTAIN 的分发：reverse 位在"中线对称推开"与"两侧板向中线合拢"两条串之间切换，默认正向。
+ * CURTAIN 的分发：reverse 位在"中线对称推开"与"两板向中线合拢"之间切换，axis 随 direction。
  * （SQUARE / RECTANGLE / CIRCLE_BLUR 的反向构造在各自函数上，由 orchestrate 直接分流。）
  */
-export function getCurtainMaskSpec(viewport: Size, reverse = false): RevealMaskSpec {
-  return reverse ? getCurtainReverseRevealSpec(viewport) : getCurtainRevealSpec(viewport)
+export function getCurtainMaskSpec(
+  viewport: Size,
+  direction: ThemeAnimationDirection = ThemeAnimationDirection.LTR,
+  reverse = false,
+): RevealMaskSpec {
+  return reverse ? getCurtainReverseRevealSpec(viewport, direction) : getCurtainRevealSpec(viewport, direction)
 }
 
 /**
@@ -583,7 +596,7 @@ export function getRevealMaskSpec(
   reverse = false,
 ): RevealMaskSpec {
   if (type === ThemeAnimationType.BLINDS) return getBlindsRevealSpec(direction, slatWidth)
-  if (type === ThemeAnimationType.CURTAIN) return getCurtainMaskSpec(viewport, reverse)
+  if (type === ThemeAnimationType.CURTAIN) return getCurtainMaskSpec(viewport, direction, reverse)
   return getScanRevealSpec(direction, viewport)
 }
 
@@ -644,23 +657,49 @@ function centerBandGradient(axisAngle: 90 | 180, feather: number): string {
   )
 }
 
-export function getQrGridMaskSpec(direction: ThemeAnimationDirection): QrGridMaskSpec {
+export function getQrGridMaskSpec(direction: ThemeAnimationDirection, cellSize: number = QR_GRID_CELL_PX): QrGridMaskSpec {
   const spec = QR_GRID_DIRECTION[direction]
-  const feather = getBlindsFeatherPx(QR_GRID_CELL_PX)
+  const feather = getBlindsFeatherPx(cellSize)
   // 起始值取 -2×软边：edge 锚定只需 -f 即不可见，center 锚定（±r/2）需要 -2f，统一取后者
   const from = -2 * feather
   // 推进轴层：LTR/RTL = 列层（竖条），TTB/BTT = 行层（横条）；垂直轴层恒为对称中心生长
   const leadGradient = qrEdgeGradient(spec.leadAngle, feather)
   const crossGradient = centerBandGradient(spec.crossAngle, feather)
-  const leadSize = spec.leadIsX ? `${QR_GRID_CELL_PX}px 100%` : `100% ${QR_GRID_CELL_PX}px`
-  const crossSize = spec.leadIsX ? `100% ${QR_GRID_CELL_PX}px` : `${QR_GRID_CELL_PX}px 100%`
+  const leadSize = spec.leadIsX ? `${cellSize}px 100%` : `100% ${cellSize}px`
+  const crossSize = spec.leadIsX ? `100% ${cellSize}px` : `${cellSize}px 100%`
   return {
     from,
-    to: QR_GRID_CELL_PX,
+    to: cellSize,
     baselineImage: leadGradient,
     baselineSize: leadSize,
     cellImage: `${crossGradient}, ${leadGradient}`,
     cellSize: `${crossSize}, ${leadSize}`,
+  }
+}
+
+/**
+ * QR_GRID 圆点格（`cellShape: 'dot'`，v1.15）：单层平铺 radial-gradient，每格一个圆
+ * 从格中心同步长大——**免 `@supports`**（不需要 intersect，与双层方块格不同路）。
+ * 完全复用属性驱动的 `RevealMaskSpec` + `buildRevealAnimationCSS`（styles.ts 零改动），
+ * `mask-size` 就是格距（平铺周期）、`repeat` 平铺。
+ *
+ * 末帧覆盖数学：相邻圆心距 = 格距，圆要盖住整格需半径 ≥ 半对角线（格距 × √2 / 2），
+ * 即**直径终值 ≥ 格距 × √2** 才无缝（`to = ceil(格距 × √2 / 2)`）。`from = -软边`：
+ * 圆半径为负时渐变 stop 单调化把实心段夹成零宽，首帧整屏透出旧主题（同 BLINDS 叶片）。
+ *
+ * `direction` 对圆点格**静默**：单层平铺没有推进轴，四向的圆都是同步从各自格中心生长
+ * （方块格的方向感来自 lead 层的起始边生长，圆点格没有这一层）。这正是它不撞约束 4 的
+ * 原因——它是 QR_GRID 的参数变体而非新类型；探针四向实测观感一致（见 requirements §10）。
+ */
+export function getQrGridDotRevealSpec(cellSize: number = QR_GRID_CELL_PX): RevealMaskSpec {
+  const feather = getBlindsFeatherPx(cellSize)
+  const v = `var(${REVEAL_VAR})`
+  return {
+    from: -feather,
+    to: Math.ceil(cellSize * Math.SQRT1_2),
+    maskImage: `radial-gradient(circle, #000 0 ${v}, transparent calc(${v} + ${feather}px))`,
+    maskSize: `${cellSize}px ${cellSize}px`,
+    maskRepeat: 'repeat',
   }
 }
 

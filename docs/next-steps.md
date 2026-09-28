@@ -34,6 +34,14 @@
       内切半径取 `getBBox` 实测（库本来就跑 DOM 测量）、外接方框兜底。
       XSS 面与附带问题的底稿见 roadmap §3 P2-2。
 
+- [ ] **门面同步攒批（P3-7 / P3-8 的门面欠账，发 0.5.0 前清）**：README（特性清单数字 + options 表
+      + reverse 接入面 5 → 8、`cellSize` / `cellShape` / CURTAIN direction 行）、文档站
+      hero / features / site.ts 数字与措辞、四个 playground 的 Reverse 控件铺到 SQUARE /
+      RECTANGLE / CIRCLE_BLUR 与 QR_GRID / CURTAIN 的参数控件、门面截图重出。
+      **必须带上需求方 2026-09-28 确认的两条行为说明**（详见 requirements §10 v1.15 第 6 条）：
+      ① QR_GRID 圆点格 `direction` 静默（单层无推进轴，四向观感一致）；② CURTAIN 的
+      `direction` 是开合轴而非四向（只有水平 / 垂直两种视觉形态）。
+
 ## §2 外部输入触发的排查项（≠ 已验，等使用者反馈）
 
 - [ ] **（等使用者反馈再排查，≠ 已验）系统缩放 125% / 150% 真机肉眼观感**：已覆盖的是 forced

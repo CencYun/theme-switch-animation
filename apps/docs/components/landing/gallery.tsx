@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes'
 import type { JSX, SVGProps } from 'react'
 import { useEffect, useState } from 'react'
 import {
+  ThemeAnimationCellShape,
   ThemeAnimationDirection,
   ThemeAnimationType,
   useThemeAnimation,
@@ -203,6 +204,9 @@ const ANIMATION_TYPES: Array<{
   initialDirection?: ThemeAnimationDirection
   /** 仅 BLINDS：卡片内渲染叶宽选择器（初始宽度 px） */
   initialSlatWidth?: number
+  /** 仅 QR_GRID：卡片内渲染格距与格子形状选择器（初始值） */
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   /** 仅 RIPPLE：卡片内渲染波长选择器（初始波长 px） */
   initialWaveWidth?: number
   /** 仅 FAN：卡片内渲染扇叶数选择器（初始扇叶数） */
@@ -295,8 +299,10 @@ const ANIMATION_TYPES: Array<{
   {
     type: ThemeAnimationType.QR_GRID,
     label: 'QR_GRID',
-    hint: '方块格子 · 方块逐格生长揭开',
+    hint: '方块格子 · 格距与形状可调',
     initialDirection: ThemeAnimationDirection.LTR,
+    initialCellSize: 64,
+    initialCellShape: 'square',
     Icon: IcoQrGrid,
     tile: 'from-stone-100 to-stone-200 text-stone-600 dark:from-stone-500/15 dark:to-stone-500/5 dark:text-stone-400',
   },
@@ -329,7 +335,8 @@ const ANIMATION_TYPES: Array<{
   {
     type: ThemeAnimationType.CURTAIN,
     label: 'CURTAIN',
-    hint: '双开门 · 中线推开',
+    hint: '双开门 · 开合轴可调',
+    initialDirection: ThemeAnimationDirection.LTR,
     initialReverse: false,
     Icon: IcoCurtain,
     tile: 'from-yellow-100 to-yellow-200 text-yellow-700 dark:from-yellow-500/15 dark:to-yellow-500/5 dark:text-yellow-400',
@@ -394,12 +401,27 @@ const BLADE_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
   { value: 12, label: '12' },
 ]
 
+/** QR_GRID 格距档位（px，合法区间 [16, 200]）：仅 QR_GRID 卡片展示 */
+const CELL_SIZE_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
+  { value: 32, label: '32px' },
+  { value: 64, label: '64px' },
+  { value: 128, label: '128px' },
+]
+
+/** QR_GRID 格子形状档位：方块（双层 intersect）与圆点（单层平铺 radial，免 @supports） */
+const CELL_SHAPE_OPTIONS: ReadonlyArray<{ value: ThemeAnimationCellShape; label: string }> = [
+  { value: 'square', label: '方块' },
+  { value: 'dot', label: '圆点' },
+]
+
 function GalleryCard({
   animationType,
   label,
   hint,
   initialDirection,
   initialSlatWidth,
+  initialCellSize,
+  initialCellShape,
   initialWaveWidth,
   initialBladeCount,
   initialReverse,
@@ -414,6 +436,8 @@ function GalleryCard({
   hint: string
   initialDirection?: ThemeAnimationDirection
   initialSlatWidth?: number
+  initialCellSize?: number
+  initialCellShape?: ThemeAnimationCellShape
   initialWaveWidth?: number
   initialBladeCount?: number
   initialReverse?: boolean | 'auto'
@@ -429,6 +453,8 @@ function GalleryCard({
     initialDirection ?? ThemeAnimationDirection.LTR,
   )
   const [slatWidth, setSlatWidth] = useState(initialSlatWidth ?? 72)
+  const [cellSize, setCellSize] = useState(initialCellSize ?? 64)
+  const [cellShape, setCellShape] = useState<ThemeAnimationCellShape>(initialCellShape ?? 'square')
   const [waveWidth, setWaveWidth] = useState(initialWaveWidth ?? 18)
   const [bladeCount, setBladeCount] = useState(initialBladeCount ?? 8)
   const [reverse, setReverse] = useState<boolean | 'auto'>(
@@ -439,6 +465,8 @@ function GalleryCard({
     animationType,
     direction,
     slatWidth,
+    cellSize,
+    cellShape,
     waveWidth,
     bladeCount,
     reverse,
@@ -527,6 +555,41 @@ function GalleryCard({
                   }`}
                 >
                   {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {initialCellShape !== undefined && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Cell</span>
+            <div className="flex gap-1">
+              {CELL_SHAPE_OPTIONS.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setCellShape(s.value)}
+                  className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] transition-colors ${
+                    cellShape === s.value
+                      ? 'bg-primary font-semibold text-primary-foreground'
+                      : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+              {CELL_SIZE_OPTIONS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCellSize(c.value)}
+                  className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] transition-colors ${
+                    cellSize === c.value
+                      ? 'bg-primary font-semibold text-primary-foreground'
+                      : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -651,8 +714,9 @@ export function GallerySection() {
             Try Different Animations
           </h2>
           <p className="mt-3 text-muted-foreground">
-            点击卡片中央按钮播放动画；BLINDS / SCAN / QR_GRID
-            可在卡内切换方向，RIPPLE 可切换环带波长，FAN 可切换扇叶数。
+            点击卡片中央按钮播放动画；BLINDS / SCAN / QR_GRID / CURTAIN
+            可在卡内切换方向，RIPPLE 可切换环带波长，FAN 可切换扇叶数，
+            QR_GRID 可切换格距与方块 / 圆点形状。
           </p>
         </div>
 
@@ -680,6 +744,8 @@ export function GallerySection() {
               hint={t.hint}
               initialDirection={t.initialDirection}
               initialSlatWidth={t.initialSlatWidth}
+              initialCellSize={t.initialCellSize}
+              initialCellShape={t.initialCellShape}
               initialWaveWidth={t.initialWaveWidth}
               initialBladeCount={t.initialBladeCount}
               initialReverse={t.initialReverse}
