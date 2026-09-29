@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useState } from 'react'
 
+import { PromoVideo } from '@/components/landing/promo-video'
 import { Button, ButtonLink } from '@/components/motion/button/base'
 import { TextReveal } from '@/components/motion/text-reveal'
 import { GithubIcon } from '@/components/ui/brand-icons'
@@ -124,6 +125,8 @@ export function HeroSection() {
               </ButtonLink>
             </div>
           </motion.div>
+
+          <PromoVideo />
         </div>
       </div>
     </section>
