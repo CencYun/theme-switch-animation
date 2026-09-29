@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 版本 | v1.15（`CURTAIN` 接入 `direction` 垂直幕布；`QR_GRID` 格距 `cellSize` 与格子形状 `cellShape` 放开为选项；见 §10 修订记录） |
+| 版本 | v1.17（宣传片门面进 README + 修 npm 页面裂图，无 API 变更；v1.16 那轮漏同步本行；见 §10 修订记录） |
 | 日期 | 2026-09-21 |
 | 状态 | 已评审通过，待开发指令 |
 | 仓库 / npm 包名 | `theme-switch-animation`（npm 已确认未注册） |
@@ -320,7 +320,8 @@ export type { ThemeAnimationOptions, ... } from '@theme-switch-animation/core'
 4. **门面截图资产作废**：`assets/screen.jpg` 删除（README 是它唯一消费者，全仓 grep 无代码引用）。`docs/animation-roadmap.md` §5 撤回清单第 6 项与「顺序建议」里的重拍表述同步去掉。**不改写的两处**：本文件 v1.7 第 5 条、`docs/reverse-option-design.md` §7 的「门面截图…必须重拍」——分别是历史修订记录与 PR4 迁移面记录，按归档规则保留原文。
 5. **changeset 判定：本轮记 patch**（`.changeset/readme-promo-cover.md`）。与 2026-09-22 那轮「纯文档站轮次不记 changeset」的区别：那次 tarball 逐字节不变，本轮 **README 本身随包发布**，npm 页面内容确实改变且修的是线上现存缺陷。`changeset status` 实测：`patch / theme-switch-animation`。代价照旧——下次 `changeset version` 会切出一个 `dist/` 与 0.5.0 相同、只有 README 不同的版本。
 6. **文档站 hero 是另一条链路**：`apps/docs/public/video/theme-switch-promo-16x9-57s.mp4` + `cover.jpg` + `components/landing/promo-video.tsx`，与 README 门面互不带动。需求方要求 hero 内**只留播放器本体**——不加边框/bezel、不加下方说明文案。
-7. **闸门**：根 `lint` / `typecheck` / `test`（12 文件 294 例全过）/ `build` + `verify:package` 全绿（`pnpm build` 而非 `npx tsup`，保住 `postbuild` 的 nuxt-runtime 拷贝）；`dist/` 不入库，build 未污染工作树。未跑：文档站 `next build` 与四个 playground typecheck——本轮未触碰 `apps/docs` 与 `playgrounds/`，且 `apps/docs` 有并行会话的未提交改动在写，避免互相覆盖。
+7. **头部表格 `| 版本 |` 行的同步约定**：我把两种读法摆出来（每轮 §10 都跟着涨 / 只记 spec 文档自身的大版本），需求方判「对齐」，即这行跟随 §10 最新条目——本轮按此更新到 v1.17，先例是 `15f4ead` 把 v1.14 改成 v1.15。v1.16 那轮漏同步，**不回填**（历史条目改不出第二版），只在本行括注里记一笔。`| 日期 |` 仍是 2026-09-21 = 文档初版日期，历轮修订均未动它，不是遗漏。
+8. **闸门**：根 `lint` / `typecheck` / `test`（12 文件 294 例全过）/ `build` + `verify:package` 全绿（`pnpm build` 而非 `npx tsup`，保住 `postbuild` 的 nuxt-runtime 拷贝）；`dist/` 不入库，build 未污染工作树。未跑：文档站 `next build` 与四个 playground typecheck——本轮未触碰 `apps/docs` 与 `playgrounds/`，且 `apps/docs` 有并行会话的未提交改动在写，避免互相覆盖。
 
 ### v1.16（2026-09-28）
 
