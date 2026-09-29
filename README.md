@@ -5,13 +5,25 @@
 [![minzipped size](https://img.shields.io/bundlephobia/minzip/theme-switch-animation.svg)](https://bundlephobia.com/package/theme-switch-animation)
 [![node](https://img.shields.io/node/v/theme-switch-animation.svg)](https://www.npmjs.com/package/theme-switch-animation)
 [![CI](https://github.com/baiwumm/theme-switch-animation/actions/workflows/ci.yml/badge.svg)](https://github.com/baiwumm/theme-switch-animation/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/baiwumm/theme-switch-animation/blob/main/LICENSE)
 
 ✨ 基于浏览器 View Transitions API 的主题切换动画库：切换 light / dark 主题时，新主题以指定形状（圆形扩散 / 多边形 / 百叶窗 / 方块格子 / 水滴涟漪 / 扇形扫开 等）"揭开"覆盖旧主题，而不是生硬跳变。
 
-## 📸 预览
+<p align="center">
+  📚 <a href="https://theme-switch-animation.baiwumm.com">在线文档站</a> ·
+  🎬 <a href="https://v.douyin.com/Wz6_MZOcwOE/">产品宣传片</a> ·
+  📦 <a href="https://www.npmjs.com/package/theme-switch-animation">npm</a> ·
+  🤖 <a href="AGENTS.md">开发规范</a>
+</p>
 
-![theme-switch-animation 文档站首页](./assets/screen.jpg)
+<!-- 图片走 raw.githubusercontent 绝对地址：npm 的 README 页不解析 `assets/...` 相对路径
+     （发布产物只含 dist + README，assets/ 不随包走），相对写法在 GitHub 正常、在 npm 上是裂图。 -->
+<p align="center">
+  <a href="https://v.douyin.com/Wz6_MZOcwOE/">
+    <img src="https://raw.githubusercontent.com/baiwumm/theme-switch-animation/main/assets/video/theme-switch-animation-promo-cover-16x9.png" width="880"
+         alt="theme-switch-animation 产品宣传片（57 秒，含中文口播）" />
+  </a>
+</p>
 
 ## ✨ 特性
 
@@ -211,4 +223,4 @@ useThemeAnimation({
 
 ## 📄 License
 
-[MIT](./LICENSE)
+[MIT](https://github.com/baiwumm/theme-switch-animation/blob/main/LICENSE)
