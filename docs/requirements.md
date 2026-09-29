@@ -310,6 +310,18 @@ export type { ThemeAnimationOptions, ... } from '@theme-switch-animation/core'
 
 ## 10. 修订记录
 
+### v1.17（2026-09-29）
+
+宣传片交付 + README 门面改版，顺带修掉 npm 包首页的裂图。**无 `packages/` 代码改动**，动画类型与 options 均未变。
+
+1. **宣传片（工程在仓库外）**：`E:\personal-project\.video-work\theme-switch-film\`，横版 `renders/final.mp4`（1920×1080·57s·含 9 句中文口播）、竖版 `renders/final-vertical.mp4`（1080×1920·硬字幕）、三张封面 `covers/cover-{16x9,4x3,3x4}.png`；无口播版另存。产品仓库代码零改动，所有适配（真组件挂载、把不可 seek 的 View Transition 暂停后按电影时钟写 `currentTime`、`matchMedia('(prefers-reduced-motion)')` 按时钟命中以实拍降级镜头）都在视频工程侧。配乐/口播的自动检查全绿，但**音频未经需求方人耳验收**（实测口径：−16.0 LUFS / −1.5 dBTP，口播窗口 2–8kHz 能量 +4–5.5 dB）。
+2. **README 门面改版**：删掉 `## 📸 预览` 小节与文档站首页截图，改成居中入口链接行（文档站 / 产品宣传片 / npm / 开发规范）+ 一张整块可点的 16:9 封面跳抖音短链。判据来自需求方两轮反馈：「预览太多了，显示一个封面跳转抖音就可以了」→「和 better-admin 的 README 一样」。封面规格 1760×990 / 288KB，命名对齐 `assets/video/<pkg>-promo-cover-16x9.png`。
+3. **npm 裂图根因（实测）**：`package.json` 的 `files: ['dist']`，`assets/` 不进 tarball，而 npm 的 README 渲染不解析 `./assets/...` 相对路径——同一份 Markdown 在 GitHub 正常、在 npm 页面是裂图。2026-09-29 探测 registry 的 `readme` 字段确认线上 0.5.0 仍是 `![…](./assets/screen.jpg)`，即**该缺陷当时已在生产环境存在**。修法：门面图片改 `https://raw.githubusercontent.com/<owner>/<repo>/main/<path>`（探测返回 200），两处 `LICENSE` 链接改 GitHub blob 页，README 内留注释防止被改回相对写法。两条连带口径：raw 地址解析的是**远端分支**，push 之前图必然 404（不是 bug）；npm 页面是 JS 渲染，`curl` 只拿回约 5KB 空壳，**渲染结果无法自证**，只能核 URL 可达 + 人工确认。
+4. **门面截图资产作废**：`assets/screen.jpg` 删除（README 是它唯一消费者，全仓 grep 无代码引用）。`docs/animation-roadmap.md` §5 撤回清单第 6 项与「顺序建议」里的重拍表述同步去掉。**不改写的两处**：本文件 v1.7 第 5 条、`docs/reverse-option-design.md` §7 的「门面截图…必须重拍」——分别是历史修订记录与 PR4 迁移面记录，按归档规则保留原文。
+5. **changeset 判定：本轮记 patch**（`.changeset/readme-promo-cover.md`）。与 2026-09-22 那轮「纯文档站轮次不记 changeset」的区别：那次 tarball 逐字节不变，本轮 **README 本身随包发布**，npm 页面内容确实改变且修的是线上现存缺陷。`changeset status` 实测：`patch / theme-switch-animation`。代价照旧——下次 `changeset version` 会切出一个 `dist/` 与 0.5.0 相同、只有 README 不同的版本。
+6. **文档站 hero 是另一条链路**：`apps/docs/public/video/theme-switch-promo-16x9-57s.mp4` + `cover.jpg` + `components/landing/promo-video.tsx`，与 README 门面互不带动。需求方要求 hero 内**只留播放器本体**——不加边框/bezel、不加下方说明文案。
+7. **闸门**：根 `lint` / `typecheck` / `test`（12 文件 294 例全过）/ `build` + `verify:package` 全绿（`pnpm build` 而非 `npx tsup`，保住 `postbuild` 的 nuxt-runtime 拷贝）；`dist/` 不入库，build 未污染工作树。未跑：文档站 `next build` 与四个 playground typecheck——本轮未触碰 `apps/docs` 与 `playgrounds/`，且 `apps/docs` 有并行会话的未提交改动在写，避免互相覆盖。
+
 ### v1.16（2026-09-28）
 
 `reverse` 补接第二批（roadmap P3-10）：`DIAMOND`，接入面 8 → 9。

@@ -198,13 +198,13 @@
 3. `packages/core/src/orchestrate.ts` —— 分发分支与 import
 4. `packages/core/src/index.ts` —— 导出名
 5. 四处测试 —— `types.test.ts`（类型数量与 options 快照）、`masks.test.ts`、`orchestrate.dom.test.ts`、`index.test.ts`（导出面清单）
-6. `apps/docs` —— 画廊卡与图标、hero / features / `site.ts` 的数字与措辞、`assets/screen.jpg` 重出
+6. `apps/docs` —— 画廊卡与图标、hero / features / `site.ts` 的数字与措辞（README 门面截图 `assets/screen.jpg` 已随 2026-09-29 的宣传片封面改版删除，无重拍项）
 7. 四个 playground —— 类型清单、控件、引导文案数字
 8. `.changeset/*.md` —— 删掉对应那条
 9. `docs/requirements.md` —— 若已写修订记录，改为"曾尝试、已撤回"一句（不删记录，留判断痕迹）
 10. 本文件 —— 状态改成 `已撤回` 并保留理由
 
-**顺序建议**：先只落 core + 画廊（第 1–6 项的前半）拿观感结论，通过后再补 README / 需求文档 / playground / changeset / 门面截图。三轮下来的经验是门面那批同步占大头，提前撤要便宜得多。
+**顺序建议**：先只落 core + 画廊（第 1–6 项的前半）拿观感结论，通过后再补 README / 需求文档 / playground / changeset。三轮下来的经验是门面那批同步占大头，提前撤要便宜得多。
 
 ---
 
