@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { ScrollTop } from '@/components/motion/scroll-top'
 import { ThemeProvider } from '@/components/provider/theme-provider'
 import { SITE_INFO } from '@/constants/site'
 
@@ -56,6 +57,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          {/* 全站浮钮：滚动进度环 + 百分比，悬停换箭头，点击平滑回顶 */}
+          <ScrollTop />
         </ThemeProvider>
       </body>
     </html>
