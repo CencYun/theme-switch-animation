@@ -13,7 +13,7 @@
   📚 <a href="https://theme-switch-animation.baiwumm.com">在线文档站</a> ·
   🎬 <a href="https://v.douyin.com/Wz6_MZOcwOE/">产品宣传片</a> ·
   📦 <a href="https://www.npmjs.com/package/theme-switch-animation">npm</a> ·
-  🤖 <a href="AGENTS.md">开发规范</a>
+  🤖 <a href="https://github.com/baiwumm/theme-switch-animation/blob/main/AGENTS.md">开发规范</a>
 </p>
 
 <!-- 图片走 raw.githubusercontent 绝对地址：npm 的 README 页不解析 `assets/...` 相对路径

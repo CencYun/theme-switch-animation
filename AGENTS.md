@@ -5,14 +5,16 @@
 ## 项目是什么
 
 `theme-switch-animation`：基于浏览器 View Transitions API 的主题切换动画库——15 种 mask 揭示动画
-+ `reverse`（`boolean | 'auto'`，接入 CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN 五类）。
++ `reverse`（`boolean | 'auto'`，接入 9 类：CIRCLE / FAN / RIPPLE / CLOCK_SWEEP / CURTAIN /
+SQUARE / RECTANGLE / CIRCLE_BLUR / DIAMOND，逐类观感见 README「🎬 动画类型」表）。
 
 - **发布包就是仓库根**的 `package.json`（exports `.` / `./react` / `./vue` / `./nuxt` 四个子路径，ESM-only）。
 - `packages/{core,react,vue,nuxt}` 是**私有内部包**（`@theme-switch-animation/*`）：core 框架无关实现
   （types / masks / styles / orchestrate），react / vue 薄适配，nuxt 模块壳。
 - `apps/docs` 文档站（Next.js，push main 自动部署到 theme-switch-animation.baiwumm.com）。
 - `playgrounds/{react,vue,next,nuxt}` 四个框架的实机试验场。
-- 环境：pnpm（`packageManager` 字段为准）+ Node ≥18，CI 跑 22 / 24 双矩阵。
+- 环境：pnpm（`packageManager` 字段为准）。**本地开发要 Node ≥22.13**（开发工具链的硬要求，
+  CI 跑 22 / 24 双矩阵）；`engines.node >= 18` 描述的是发布产物消费者的环境，不是开发环境。
 
 ## 两条硬技术约束（改 core 前先知道）
 
@@ -29,10 +31,25 @@
 | 用途 | 命令 |
 |---|---|
 | 门禁四件套 | `pnpm lint` / `pnpm typecheck` / `pnpm test` / `pnpm build` |
-| 产物校验 | `pnpm verify:package`（build 之后跑；**要用 `pnpm build`，别用 `npx tsup` 绕过 postbuild**） |
+| 单文件测试 / lint | `pnpm vitest run packages/core/src/masks.test.ts`（测试与源码同目录，共 12 个）；`pnpm eslint <file>` |
+| 产物校验 | `pnpm verify:package`（build 之后跑；**必须用 `pnpm build`**——postbuild 要拷 nuxt runtime，`npx tsup` 会绕过它） |
 | 实机验收 | `pnpm test:acceptance`（7 个 CDP 脚本，需本机 Chrome） |
-| 引擎矩阵 | WebKit/Blink：`PW_DIR=<pw> node scripts/verify-engine.mjs --engine=webkit`（`--engine=chromium` 配 `--channel=chrome\|msedge` 驱动本机浏览器）；Firefox：`PW_DIR=<pw> FF_WORK_DIR=<out> node scripts/verify-firefox-video.mjs --all-types`（截图判据在 Firefox 失效，走录像取证）。`<pw>` = playwright@1.63 装在**仓库外稳定路径**（如 `C:/Users/<you>/tools/pw`；浏览器本体在 `%LOCALAPPDATA%/ms-playwright`，别装 `%TEMP%`，会被系统清扫）；`<out>` = 仓库内 gitignored 的 `scripts/.verify-engine-out`（**跑前先 `mkdir -p`，`mkdtemp` 不自建父目录**）。Git Bash 下传参要 `MSYS2_ARG_CONV_EXCL='*'` |
 | 发版 | `pnpm changeset` → `pnpm changeset version` → commit → 推 `v*` tag |
+
+### 引擎矩阵（WebKit / Blink / Firefox 实机取证）
+
+- WebKit / Blink：`PW_DIR=<pw> node scripts/verify-engine.mjs --engine=webkit`；
+  `--engine=chromium` 配 `--channel=chrome\|msedge` 驱动本机真实安装的浏览器。
+- Firefox：`PW_DIR=<pw> FF_WORK_DIR=<out> node scripts/verify-firefox-video.mjs --all-types`
+  （截图判据在 Firefox 失效，走录像取证）。
+- `<pw>` = playwright@1.63 装在**仓库外稳定路径**（如 `C:/Users/<you>/tools/pw`），浏览器本体在
+  `%LOCALAPPDATA%/ms-playwright`；别装 `%TEMP%`，会被系统清扫。`PW_DIR` 填安装根目录
+  （脚本按 `<PW_DIR>/node_modules/playwright` 导入）。
+- `<out>` = 仓库内 gitignored 的 `scripts/.verify-engine-out`，**必须传绝对路径**（相对路径经
+  ffmpeg `cwd` 二次解析会指向不存在的目录，实测 I/O error；脚本会自建该目录含父目录）。
+- **两个脚本不并行跑**：verify-engine 启动即清空共享的 `scripts/.verify-engine-out`，
+  会端掉 verify-firefox-video 正在用的抽帧目录。
+- Git Bash 下传参要 `MSYS2_ARG_CONV_EXCL='*'`。
 
 ## 发布链路
 
@@ -59,5 +76,6 @@
 
 - 注释密度高是刻意的：写"为什么"和约束（尤其动画观感上反直觉的结论），不写"这行做了什么"。
 - commit message 走 conventional commits + scope，中文主题：`fix(core): …`、`docs(next-steps): …`。
-- 根 `eslint` 管 `packages/` 与 `scripts/`；`apps/docs` 用自己的 biome 且被根 eslint ignore
-  （35 条既存诊断未清，见 `docs/next-steps.md`）。
+- 根 `eslint` 管 `packages/`、`scripts/` 与 `playgrounds/`；`apps/docs` 用自己的 biome
+  （`pnpm -C apps/docs lint`，有既存存量诊断，跑红属预期）。**根门禁不覆盖 `apps/docs`**：改完文档站要单独跑
+  `pnpm -C apps/docs lint` 与 apps/docs 自己的 `tsc --noEmit`（或 `next build`）兜底。

@@ -3,9 +3,9 @@
 | 项目 | 内容 |
 |---|---|
 | 版本 | v1.17（宣传片门面进 README + 修 npm 页面裂图，无 API 变更；v1.16 那轮漏同步本行；见 §10 修订记录） |
-| 日期 | 2026-09-21 |
-| 状态 | 已评审通过，待开发指令 |
-| 仓库 / npm 包名 | `theme-switch-animation`（npm 已确认未注册） |
+| 日期 | 2026-09-29 |
+| 状态 | 已评审通过，持续开发中（进展见 §10 修订记录） |
+| 仓库 / npm 包名 | `theme-switch-animation`（npm 已注册并发布） |
 | 支持框架 | React 18+、Vue 3+、Next.js（App Router）、Nuxt 3+ |
 
 ---
@@ -54,7 +54,8 @@ theme-switch-animation/                  # 仓库名 = 包名
 │           └── runtime/composables/
 │               └── index.ts            # 从 core/vue 重新导出，供自动导入扫描
 ├── playgrounds/                        # react / vue / next（next-themes）/ nuxt（color-mode）
-├── docs/                               # 文档站，每种动画 live demo
+├── apps/docs/                          # 文档站（Next.js，每种动画 live demo，push main 自动部署）
+├── docs/                               # 项目活文档（requirements / next-steps / roadmap / reverse 设计）
 ├── package.json                        # 根包 = 发布包 theme-switch-animation
 └── tsup.config.ts / vitest / changesets / CI
 ```
@@ -97,7 +98,7 @@ theme-switch-animation/                  # 仓库名 = 包名
 - **Nuxt 需要独立 `/nuxt` 子路径**：模块入口 `dist/nuxt.mjs`，旁边保留 `dist/nuxt-runtime/composables/` 目录（`addImportsDir` 指向目录，不是单文件）。
 - `ThemeAnimationType` 用 `const` 对象 + `as const`，不用 TS `enum`（Nuxt 自动导入扫描命名导出，`const` 对象对打包和 `isolatedModules` 更稳）。
 - 技术栈：pnpm workspace + tsup（构建）+ vitest（单测）+ Playwright（e2e）+ changesets（版本发布）。
-- `engines` 字段（v1.2 新增，v1.3 澄清）：面向**发布产物的消费环境**——`engines.node >= 18`、`engines.pnpm >= 9`（构建产物为 es2020 ESM，Node 18 消费者可正常使用）。**参与本仓库开发**（跑测试与构建）需要 Node >= 22.13，这是 pnpm 11 / vitest 5 / jsdom 30 工具链的最低要求，在 README 开发段注明，不写进 `engines`。
+- `engines` 字段（v1.2 新增，v1.3 澄清）：面向**发布产物的消费环境**——`engines.node >= 18`、`engines.pnpm >= 9`（构建产物为 es2020 ESM，Node 18 消费者可正常使用）。**参与本仓库开发**（跑测试与构建）需要 Node >= 22.13，这是 pnpm 11 / vitest 5 / jsdom 30 工具链的最低要求，在 `AGENTS.md` 注明，不写进 `engines`。
 
 ## 5. API 设计
 
@@ -132,7 +133,7 @@ theme-switch-animation/                  # 仓库名 = 包名
 
 - **非受控（默认）**：库内部管理状态——读写 `localStorage`（key 为 `'theme-switch-animation'`），并在转场回调内同步 toggle `documentElement` 上的 `darkClassName`。开箱即用。
 - **受控**：库**不碰 localStorage、不自己改 class**，只做两件事：注入动画样式；在 `startViewTransition` 回调里调用 `onChange(next)` 并等 DOM 真实变化后让浏览器截图。
-- **返回值**：React 版 `{ ref, toggleTheme, isDark }`；Vue 版 `{ triggerRef, toggleTheme, isDark }`（避免与 Vue 的 `ref` 解构冲突）。
+- **返回值**：React 版 `{ ref, toggleTheme, isDark, finished }`；Vue 版 `{ triggerRef, toggleTheme, isDark, finished }`（`triggerRef` 避免与 Vue 的 `ref` 解构冲突；Vue 的 `isDark` / `finished` 是 Ref）。`finished` 是最近一次切换动画的结束 Promise，库内已消化 rejection，快速连点不产生 `unhandledrejection`。
 
 ### 5.4 受控模式同步协议（v1.1 修订 #1）
 
@@ -303,7 +304,7 @@ export type { ThemeAnimationOptions, ... } from '@theme-switch-animation/core'
 5. **SSR**：Next RSC + Nuxt SSR 下无 hydration 报错、无服务端 localStorage 访问。
 6. **变量化**：分别传 `cubic-bezier(...)` 与 `linear(...)`，DevTools computed style 确认生效；自定义 duration 生效。
 7. **受控协议超时压力测试**（v1.1 修订 #1、v1.2 微调 #2）：在 Chrome DevTools 中开启 CPU 4x/6x throttling + Slow 3G 网络节流，实测 next-themes / color-mode 的 300ms 超时触发频率；若频繁触发，按 §5.4 备选方案改混合模式（库回调内直接改 class + 同步通知外部状态），并重测。
-8. **Playwright e2e 矩阵**（v1.1 修订 #5）：**只跑 Chromium 和 WebKit**。理由：Playwright 的 WebKit 引擎与 Safari 存在差异；Firefox 的 View Transitions 自 144 才支持，Playwright 自带的 Firefox 版本可能未默认启用。Firefox 用**真机手动测试**，暂时跳过，并在文档（README + 文档站）注明。
+8. **Playwright e2e 矩阵**（v1.1 修订 #5）：**只跑 Chromium 和 WebKit**。理由：Playwright 的 WebKit 引擎与 Safari 存在差异；Firefox 的 View Transitions 自 144 才支持，Playwright 自带的 Firefox 版本可能未默认启用。Firefox 用**真机手动测试**，暂时跳过，并在文档（README + 文档站）注明。（**口径已演进，本条按当时规划保留原文**：Firefox 144+ 支持 View Transitions 后，现行验收走录像取证矩阵——`AGENTS.md`「引擎矩阵」，v1.14–v1.16 各轮均记录「Firefox 录像全绿」。）
 9. **Nuxt 自动导入完整性**（v1.1 修订 #2 新增）：全新 Nuxt 项目仅加 `modules: ['theme-switch-animation/nuxt']`，`useThemeAnimation`、`ThemeAnimationType` 及所有类型**无需 import 即可使用且有完整类型提示**（`nuxt prepare` 通过、TS 无报错）。
 10. **单测**：mask 几何（四角最大距离、终尺寸）与 v1.6 的属性驱动规格（BLINDS / SCAN / QR_GRID 的起止值、渐变角、平铺尺寸、`@supports` 双层与降级基线）、v1.7 的 RIPPLE 环带（stop 序列与衰减 alpha、波长缩放、末帧实心段覆盖最远角、波源取自触发点）、v1.8 的角度族（conic 串与软尾、`to = 360 + 尾宽` 与视口无关、扇叶周期随 bladeCount 缩放及非整除精度、注册属性分名、守卫互斥）、v1.9 的 CURTAIN（三段对称渐变串、`to = 视口宽 + 2×软边`、四个 direction 取值结果一致、分发命中与守卫互斥）、v1.10 的 reverse（三态校验与非法值回落、`CIRCLE + true` 的洞式 CSS 结构基线（注册属性声明、渐变两侧 stop、静止蒙版盒子、末帧半径收零、无 `z-index`）、`'auto'` 两态分别等于 `false` / `true`、`FAN` / `RIPPLE` / `CLOCK_SWEEP` 反向取补串与端点（RIPPLE 起点去掉 2.1 余量、终点过冲整个前缘）、`CURTAIN` 反向的两层 add 结构与两端软边、补集与正向的 stop 位置一格不差、分发 reverse 位对已接入类型都生效、未接入类型传 `true` 输出不变）、v1.14 的三类型反向（`SQUARE` / `RECTANGLE` 四板 add 串结构与四条 extent、首帧全隐不等式对中心与四角穷举、末帧四板相接覆盖全屏、RECTANGLE 归一因子向上舍入与软边归一、`CIRCLE_BLUR` 径向洞宽羽化串与两端值（起点 = maxRadius + 羽化、终点过冲一整段羽化宽）、羽化随 blurAmount 缩放、未接入的形状族 4 个传 `true` 输出不变）、v1.15 的参数化（`CURTAIN` 的 direction 两轴映射与 reverse 随轴、`QR_GRID` cellSize 缩放平铺周期与软边、圆点格串结构与 `to = ceil(格距 × √2 / 2)` 覆盖数学、`from = -软边` 首帧全隐、direction 静默的结构保证、cellSize / cellShape 非法值回落）、v1.16 的 DIAMOND 反向（对角透明芯条带 add 串结构与两条 S 常量、`from = 1.05 × v0` 端值（v0 = 四角 (|dx|+|dy|)/√2 最大值，不照抄正向 √2×1.05 外接圆余量）、首帧全隐不等式对中心与四角穷举、末帧零残留的结构保证、免 `@supports` / 无 mask-composite、未接入的形状族 3 个传 `true` 输出不变）全覆盖；TS strict 通过。
 11. **发布清单**：`npm pack` 内容 = dist（含 nuxt-runtime 目录）+ LICENSE + README；四个子路径（`.` / `./react` / `./vue` / `./nuxt`）exports 均可解析。
